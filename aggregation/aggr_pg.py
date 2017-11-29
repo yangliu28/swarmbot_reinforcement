@@ -1,4 +1,4 @@
-# 
+# class of the deep neural network with policy gradient method
 
 # hold data and computation for the neural network and policy gradient method
 

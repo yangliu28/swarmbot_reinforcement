@@ -3,24 +3,26 @@
 # interact with the environment, and brain of reinforcement learning
 
 
+# the graphic updating frequency is set to the same as the training data generating
+# frequency, the moving step needs to be small in graphics to make it smooth
+# but I did do so, because training data may need to be generated at a lower frequency
+# for the good of the training, the graphics needs to sacrifice
+
+
 from aggr_env import AggrEnv
 import time
 
-sim_env = AggrEnv(30)
+robot_quantity = 30
+world_size_physical = 100.0  # side length of physical world
+world_size_display = 600  # side length of display world, in pixels
+
+sim_env = AggrEnv(robot_quantity, world_size_physical, world_size_display)
+print(sim_env.poses)
 
 sleep_time = 0.1
 
 while True:
-    for _ in range(20):
-        sim_env.frame_update(5,0)
-        time.sleep(sleep_time)
-    for _ in range(20):
-        sim_env.frame_update(0,5)
-        time.sleep(sleep_time)
-    for _ in range(20):
-        sim_env.frame_update(-5,0)
-        time.sleep(sleep_time)
-    for _ in range(20):
-        sim_env.frame_update(0,-5)
-        time.sleep(sleep_time)
+    sim_env.frame_update()
+    time.sleep(sleep_time)
+
 
