@@ -15,11 +15,13 @@ import time
 robot_quantity = 30
 world_size_physical = 100.0  # side length of physical world
 world_size_display = 600  # side length of display world, in pixels
+sensor_range = 10.0  # range of communication and sensing
+frame_speed = 2.0  # speed of the robot in physical world, distance per frame
 
-sim_env = AggrEnv(robot_quantity, world_size_physical, world_size_display)
-print(sim_env.poses)
 
-sleep_time = 0.1
+sim_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
+                  sensor_range, frame_speed)
+sleep_time = 0.5
 
 while True:
     sim_env.frame_update()

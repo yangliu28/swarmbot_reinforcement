@@ -18,6 +18,9 @@
 # discrete pixel world, the posiitons are converted from the physical world.
 # This method, although a bit complicated, make the position of robots accurate.
 
+# Physical world coordinates and display world coordinates:
+# Origin of physical world is at bottom left corner, x points to right, y to top;
+# Origin of display world is at top left corner, x points to right, y to bottom.
 
 # object manipulaltion under Canvas class: move, coords
 
@@ -27,18 +30,20 @@ import random
 
 ROBOT_SIZE = 10  # diameter of robot in pixels
 ROBOT_COLOR = 'blue'
-FRAME_SPEED = 5  # speed of the robot, defined as number of pixels per frame
+
 
 class AggrEnv():  # abbreviation for aggregation environment
-    def __init__(self, robot_quantity, world_size_physical, world_size_display, ):
+    def __init__(self, robot_quantity, world_size_physical, world_size_display,
+                 sensor_range, frame_speed):
         self.N = robot_quantity
-        self.p_size = world_size_physical  # side length of physical world, floating point
-        self.d_size = world_size_display  # side length of display world in pixels, integer
-        self.world = world_size  # in pixels; square world
+        self.size_p = world_size_physical  # side length of physical world, floating point
+        self.size_d = world_size_display  # side length of display world in pixels, integer
+        self.range = sensor_range  # range of communication and sensing
+        self.speed = frame_speed  # physical distance per frame
         # root window, as the simulation window
         self.root = Tk()
         self.root.resizable(width=False, height=False)  # inhibit resizing
-        win_size = (self.world+ROBOT_SIZE, self.world+ROBOT_SIZE)
+        win_size = (self.size_d+ROBOT_SIZE, self.size_d+ROBOT_SIZE)
             # maker window larger so as to compensate the robot size
         win_size_str = str(win_size[0])+'x'+str(win_size[1])
         self.root.geometry(win_size_str + '+100+100')  # widthxheight+xpos+ypos
@@ -47,23 +52,41 @@ class AggrEnv():  # abbreviation for aggregation environment
         ico_img = PhotoImage(file='../ants.png')  # image file under parent directory
         self.root.tk.call('wm', 'iconphoto', self.root._w, ico_img)  # set window icon
         # canvas for all drawing
-        self.canvas = Canvas(self.root)
+        self.canvas = Canvas(self.root, background='white')
         self.canvas.pack(fill=BOTH, expand=True)  # fill entire window
             # keyword 'fill' alone seems not working, have to add 'expand'
         # create the robots
         self.robots = []  # robots as the objects on canvas
-        self.poses = []
-        for _ in range(self.N):
-            x0 = random.randrange(0,self.world)
-            y0 = random.randrange(0,self.world)
-            self.poses.append([x0,y0])
+        self.poses_p = [0.0 for i in range(self.N)]  # robot positions in physical
+        self.poses_d = [0 for i in range(self.N)]  # robot positions in display
+        self.poses_d_last = self.poses_d[:]  # display positions of last frame
+        for i in range(self.N):
+            self.poses_p[i] = [random.uniform(0, self.size_p),
+                               random.uniform(0, self.size_p)]
+        self.display_pos_update()  # update the display positions of robots
+        self.poses_d_last = self.poses_d[:]  # initialize poses_d_last
+        for i in range(self.N):
             self.robots.append(self.canvas.create_oval(
-                x0,y0,x0+ROBOT_SIZE,y0+ROBOT_SIZE, outline=ROBOT_COLOR, fill=ROBOT_COLOR))
+                self.poses_d[i][0], self.poses_d[i][1],
+                self.poses_d[i][0]+ROBOT_SIZE, self.poses_d[i][1]+ROBOT_SIZE,
+                outline=ROBOT_COLOR, fill=ROBOT_COLOR))
+        # create the connections
+        self.connections = 
         # self.root.mainloop()  # not needed, have my own loop
 
+    # update all display positions
+    def display_pos_update(self):
+        for i in range(self.N):
+            pos_x = int(self.poses_p[i][0]/self.size_p * self.size_d)
+            pos_y = int((1-self.poses_p[i][1]/self.size_p) * self.size_d)
+            self.poses_d[i] = [pos_x, pos_y]
+
+    # update the connection map
+    def connection_update(self):
 
     def frame_update(self):
         self.root.update()
+
 
 
 
