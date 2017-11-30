@@ -20,11 +20,12 @@ frame_speed = 2.0  # speed of the robot in physical world, distance per frame
 
 
 sim_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
-                  sensor_range, frame_speed)
+                  sensor_range, frame_speed,
+                  10)
 sleep_time = 0.5
 
 while True:
-    sim_env.frame_update()
+    sim_env.display_update()
     time.sleep(sleep_time)
 
 

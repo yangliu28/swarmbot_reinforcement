@@ -26,15 +26,17 @@
 
 
 from Tkinter import *
-import random
+import numpy as np
 
 ROBOT_SIZE = 10  # diameter of robot in pixels
+ROBOT_RAD = ROBOT_SIZE/2  # radius of robot, for compensation
 ROBOT_COLOR = 'blue'
 
 
 class AggrEnv():  # abbreviation for aggregation environment
     def __init__(self, robot_quantity, world_size_physical, world_size_display,
-                 sensor_range, frame_speed):
+                 sensor_range, frame_speed,
+                 observation_n, ):
         self.N = robot_quantity
         self.size_p = world_size_physical  # side length of physical world, floating point
         self.size_d = world_size_display  # side length of display world in pixels, integer
@@ -57,35 +59,72 @@ class AggrEnv():  # abbreviation for aggregation environment
             # keyword 'fill' alone seems not working, have to add 'expand'
         # create the robots
         self.robots = []  # robots as the objects on canvas
-        self.poses_p = [0.0 for i in range(self.N)]  # robot positions in physical
-        self.poses_d = [0 for i in range(self.N)]  # robot positions in display
-        self.poses_d_last = self.poses_d[:]  # display positions of last frame
-        for i in range(self.N):
-            self.poses_p[i] = [random.uniform(0, self.size_p),
-                               random.uniform(0, self.size_p)]
-        self.display_pos_update()  # update the display positions of robots
-        self.poses_d_last = self.poses_d[:]  # initialize poses_d_last
+        self.poses_p = np.random.uniform(0.0, self.size_p, (self.N,2))
+            # robot positions in physical world
+        self.poses_d = np.zeros((self.N, 2))  # current robot positions in display
+        self.poses_d_update()  # update the poses_d from poses_p
+        self.poses_d_last = np.copy(self.poses_d)  # display positions of last frame
         for i in range(self.N):
             self.robots.append(self.canvas.create_oval(
                 self.poses_d[i][0], self.poses_d[i][1],
                 self.poses_d[i][0]+ROBOT_SIZE, self.poses_d[i][1]+ROBOT_SIZE,
                 outline=ROBOT_COLOR, fill=ROBOT_COLOR))
         # create the connections
-        self.connections = 
-        # self.root.mainloop()  # not needed, have my own loop
+        self.dists = []
+        self.conns = []
+        self.connection_update()
+        self.lines = []  # lines representing connections on canvas
+        # self.root.mainloop()  # do not need mainloop here
 
-    # update all display positions
-    def display_pos_update(self):
+    # update the poses_d, the display position of all robots
+    def poses_d_update(self):
         for i in range(self.N):
             pos_x = int(self.poses_p[i][0]/self.size_p * self.size_d)
             pos_y = int((1-self.poses_p[i][1]/self.size_p) * self.size_d)
-            self.poses_d[i] = [pos_x, pos_y]
+            self.poses_d[i] = np.array([pos_x, pos_y])
 
-    # update the connection map
-    def connection_update(self):
-
-    def frame_update(self):
+    # update the display once
+    def display_update(self):
+        self.poses_d_update()  # re-calculate the display positions
+        # for the positions of robots on canvas
+        for i in range(self.N):
+            move = self.poses_d[i]-self.poses_d_last[i]
+            self.canvas.move(self.robots[i], move[0], move[1])
+        self.poses_d_last = np.copy(self.poses_d)  # reset pos of last frame
+        # for the connecting lines on canvas
+        self.connection_update()
+        for line in self.lines:
+            self.canvas.delete(line)
+        self.lines = []  # reset to empty
+        for i in range(self.N-1):
+            for j in range(i+1, self.N):
+                if self.conns[i,j] > 0:
+                    (x0, y0) = (self.poses_d[i][0] + ROBOT_RAD,
+                                self.poses_d[i][1] + ROBOT_RAD)
+                    (x1, y1) = (self.poses_d[j][0] + ROBOT_RAD,
+                                self.poses_d[j][1] + ROBOT_RAD)
+                    self.lines.append(self.canvas.create_line(
+                        x0, y0, x1, y1, fill=ROBOT_COLOR))
+        # update the new frame
         self.root.update()
+
+    # update the distances and connection map
+    def connection_update(self):
+        self.dists = np.zeros((self.N, self.N))
+        self.conns = np.zeros((self.N, self.N))
+        for i in range(self.N-1):
+            for j in range(i+1, self.N):
+                dist = np.linalg.norm(self.poses_p[i]-self.poses_p[j])
+                self.dists[i,j] = dist
+                self.dists[j,i] = dist
+                if dist < self.range:
+                    self.conns[i,j] = 1
+                    self.conns[j,i] = 1
+
+
+    # get the observation of 
+
+
 
 
 
