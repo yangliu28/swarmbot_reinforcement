@@ -22,11 +22,13 @@
 # Origin of physical world is at bottom left corner, x points to right, y to top;
 # Origin of display world is at top left corner, x points to right, y to bottom.
 
-# object manipulaltion under Canvas class: move, coords
+# relation between the equally divided sectors and heading direction:
+# the heading direction is in the middle of a sector.
 
 
 from Tkinter import *
 import numpy as np
+import math
 
 ROBOT_SIZE = 10  # diameter of robot in pixels
 ROBOT_RAD = ROBOT_SIZE/2  # radius of robot, for compensation
@@ -36,12 +38,13 @@ ROBOT_COLOR = 'blue'
 class AggrEnv():  # abbreviation for aggregation environment
     def __init__(self, robot_quantity, world_size_physical, world_size_display,
                  sensor_range, frame_speed,
-                 observation_n, ):
+                 view_div, ):
         self.N = robot_quantity
         self.size_p = world_size_physical  # side length of physical world, floating point
         self.size_d = world_size_display  # side length of display world in pixels, integer
         self.range = sensor_range  # range of communication and sensing
         self.speed = frame_speed  # physical distance per frame
+        self.div = view_div  # how many slices to divide the 360 view
         # root window, as the simulation window
         self.root = Tk()
         self.root.resizable(width=False, height=False)  # inhibit resizing
@@ -53,7 +56,7 @@ class AggrEnv():  # abbreviation for aggregation environment
         # self.root.iconbitmap('../ants.png')  # not working
         ico_img = PhotoImage(file='../ants.png')  # image file under parent directory
         self.root.tk.call('wm', 'iconphoto', self.root._w, ico_img)  # set window icon
-        # canvas for all drawing
+        # create the canvas, as a holder for all graphics objects
         self.canvas = Canvas(self.root, background='white')
         self.canvas.pack(fill=BOTH, expand=True)  # fill entire window
             # keyword 'fill' alone seems not working, have to add 'expand'
@@ -69,12 +72,12 @@ class AggrEnv():  # abbreviation for aggregation environment
                 self.poses_d[i][0], self.poses_d[i][1],
                 self.poses_d[i][0]+ROBOT_SIZE, self.poses_d[i][1]+ROBOT_SIZE,
                 outline=ROBOT_COLOR, fill=ROBOT_COLOR))
-        # create the connections
+        self.heading = np.random.uniform(0, math.pi*2, (self.N))  # heading direction
+        # create the connection map
         self.dists = []
-        self.conns = []
-        self.connection_update()
+        self.conns = []  # the connection map
+        self.connections_update()
         self.lines = []  # lines representing connections on canvas
-        # self.root.mainloop()  # do not need mainloop here
 
     # update the poses_d, the display position of all robots
     def poses_d_update(self):
@@ -82,6 +85,19 @@ class AggrEnv():  # abbreviation for aggregation environment
             pos_x = int(self.poses_p[i][0]/self.size_p * self.size_d)
             pos_y = int((1-self.poses_p[i][1]/self.size_p) * self.size_d)
             self.poses_d[i] = np.array([pos_x, pos_y])
+
+    # update the distances and connection map
+    def connections_update(self):
+        self.dists = np.zeros((self.N, self.N))
+        self.conns = np.zeros((self.N, self.N))
+        for i in range(self.N-1):
+            for j in range(i+1, self.N):
+                dist = np.linalg.norm(self.poses_p[i]-self.poses_p[j])
+                self.dists[i,j] = dist
+                self.dists[j,i] = dist
+                if dist < self.range:
+                    self.conns[i,j] = 1
+                    self.conns[j,i] = 1
 
     # update the display once
     def display_update(self):
@@ -92,7 +108,7 @@ class AggrEnv():  # abbreviation for aggregation environment
             self.canvas.move(self.robots[i], move[0], move[1])
         self.poses_d_last = np.copy(self.poses_d)  # reset pos of last frame
         # for the connecting lines on canvas
-        self.connection_update()
+        self.connections_update()
         for line in self.lines:
             self.canvas.delete(line)
         self.lines = []  # reset to empty
@@ -108,21 +124,26 @@ class AggrEnv():  # abbreviation for aggregation environment
         # update the new frame
         self.root.update()
 
-    # update the distances and connection map
-    def connection_update(self):
-        self.dists = np.zeros((self.N, self.N))
-        self.conns = np.zeros((self.N, self.N))
-        for i in range(self.N-1):
-            for j in range(i+1, self.N):
-                dist = np.linalg.norm(self.poses_p[i]-self.poses_p[j])
-                self.dists[i,j] = dist
-                self.dists[j,i] = dist
-                if dist < self.range:
-                    self.conns[i,j] = 1
-                    self.conns[j,i] = 1
+    # output the current observation of the robots
+    def get_observation(self):
+        observation = np.ones((self.view_div))
+        for i in range(self.N):
+            for j in range(self.N):
+                if j == i: continuous
+                if self.conns[i,j] > 0:
+                    # find out which sector it belongs to, and output distance ratio
+                    vec = self.poses_p[j]-self.poses_p[i]
+                    self.dist[i,j]
 
+    # step update with updating the graphics, for observing performance
+    def step_update_with_display(self):
+        self.step_update_without_display()
+        self.display_update()
 
-    # get the observation of 
+    # step update without updating the graphics, for speeding up simulation
+    def step_update_without_display(self):
+        pass
+
 
 
 

@@ -17,11 +17,11 @@ world_size_physical = 100.0  # side length of physical world
 world_size_display = 600  # side length of display world, in pixels
 sensor_range = 10.0  # range of communication and sensing
 frame_speed = 2.0  # speed of the robot in physical world, distance per frame
-
+view_div = 36  # divide the 360 view into how many slices
 
 sim_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
                   sensor_range, frame_speed,
-                  10)
+                  view_div)
 sleep_time = 0.5
 
 while True:
