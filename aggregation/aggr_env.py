@@ -24,7 +24,7 @@
 
 # relation between the equally divided sectors and heading direction:
 # the heading direction is in the middle of a sector.
-
+# use [-math.pi, math.pi) as the range of heading direction
 
 from Tkinter import *
 import numpy as np
@@ -44,7 +44,8 @@ class AggrEnv():  # abbreviation for aggregation environment
         self.size_d = world_size_display  # side length of display world in pixels, integer
         self.range = sensor_range  # range of communication and sensing
         self.speed = frame_speed  # physical distance per frame
-        self.div = view_div  # how many slices to divide the 360 view
+        self.div = view_div  # how many sectors to divide the 360 view
+        self.sec_wid = math.pi*2/self.div  # sector width
         # root window, as the simulation window
         self.root = Tk()
         self.root.resizable(width=False, height=False)  # inhibit resizing
@@ -56,6 +57,8 @@ class AggrEnv():  # abbreviation for aggregation environment
         # self.root.iconbitmap('../ants.png')  # not working
         ico_img = PhotoImage(file='../ants.png')  # image file under parent directory
         self.root.tk.call('wm', 'iconphoto', self.root._w, ico_img)  # set window icon
+        self.root.protocol('WM_DELETE_WINDOW', self.close_window_x)
+        self.window_closed = False  # flag for window closed
         # create the canvas, as a holder for all graphics objects
         self.canvas = Canvas(self.root, background='white')
         self.canvas.pack(fill=BOTH, expand=True)  # fill entire window
@@ -72,7 +75,7 @@ class AggrEnv():  # abbreviation for aggregation environment
                 self.poses_d[i][0], self.poses_d[i][1],
                 self.poses_d[i][0]+ROBOT_SIZE, self.poses_d[i][1]+ROBOT_SIZE,
                 outline=ROBOT_COLOR, fill=ROBOT_COLOR))
-        self.heading = np.random.uniform(0, math.pi*2, (self.N))  # heading direction
+        self.heading = np.random.uniform(-math.pi, math.pi, (self.N))  # heading direction
         # create the connection map
         self.dists = []
         self.conns = []  # the connection map
@@ -124,29 +127,43 @@ class AggrEnv():  # abbreviation for aggregation environment
         # update the new frame
         self.root.update()
 
-    # output the current observation of the robots
-    def get_observation(self):
-        observation = np.ones((self.view_div))
+    # return the current observations of the robots, 
+    def get_observations(self):
+        observations = np.ones((self.N, self.view_div))
+        has_neighbor = np.zeros(self.N)
         for i in range(self.N):
             for j in range(self.N):
                 if j == i: continuous
                 if self.conns[i,j] > 0:
-                    # find out which sector it belongs to, and output distance ratio
-                    vec = self.poses_p[j]-self.poses_p[i]
-                    self.dist[i,j]
-
-    # step update with updating the graphics, for observing performance
-    def step_update_with_display(self):
-        self.step_update_without_display()
-        self.display_update()
+                    # new neighbor identified, set the has_neighbor flag
+                    if not has_neighbor[i]: has_neighbor[i] = 1
+                    # find out which sector it belongs to, and calculate distance ratio
+                    vec = self.poses_p[j]-self.poses_p[i]  # vector from host to neighbor
+                    ang_diff = math.atan2(vec[1], vec[0]) - self.heading[i]
+                        # angle diff from heading direction to the neighbor
+                    ang_diff = self.reset_radian(ang_diff  + self.sec_wid/2)
+                        # compensate for half sector width
+                    sec_index = int(ang_diff / self.sec_wid)
+                    dist_ratio = self.dist[i,j] / self.range
+                    if dist_ratio < observations[i, sec_index]:
+                        # only the closest neighbor in that sector will be recorded
+                        observations[i, sec_index] = dist_ratio
+        return observations, has_neighbor
 
     # step update without updating the graphics, for speeding up simulation
     def step_update_without_display(self):
         pass
 
+    def close_window_x(self):
+        self.window_closed = True  # reverse exit flag
+        self.root.destroy()
 
-
-
-
+    # reset radian to range of [0, math.pi*2)
+    def reset_radian(self, radian):
+        while radian < 0:
+            radian = radian + math.pi*2
+        while radian >= math.pi*2:
+            radian = radian - math.pi*2
+        return radian
 
 

@@ -24,7 +24,10 @@ sim_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
                   view_div)
 sleep_time = 0.5
 
-while True:
+
+# more save way is checking window_closed right before updating the display
+
+while not sim_env.window_closed:
     sim_env.display_update()
     time.sleep(sleep_time)
 
