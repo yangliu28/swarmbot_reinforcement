@@ -1,7 +1,8 @@
-# class for aggregation simulation environment
+# class for the aggregation simulation environment
 
-# in every step, it can output observation of each robot
-# and take actions as input, calculate the reward, and output new observation again
+# In a simulation steep, it can output the observations of the robots; it can take
+# actions as input, update the physical environment, and return the rewards.
+
 
 # Since tkinter draw circle on canvas by the pixel position of top left corner and right
 # bottom corner, it's more natural just use the top left corner as the coordinates of the
@@ -47,8 +48,7 @@ class AggrEnv():  # abbreviation for aggregation environment
         self.view_div = view_div  # how many sectors to divide the 360 view
         self.sec_wid = math.pi*2 / self.view_div  # sector width
         self.range_div = len(award_rings)  # number of award rings
-        self.award_rings = award_rings  # the awards distributed for different rings
-            # from farthest to closest
+        self.award_rings = award_rings  # the awards distributed for distance rings
         self.ring_wid = self.range/self.range_div  # width of the rings
         # root window, as the simulation window
         self.root = Tk()
@@ -106,30 +106,6 @@ class AggrEnv():  # abbreviation for aggregation environment
                     self.conns[i,j] = 1
                     self.conns[j,i] = 1
 
-    # update the display once
-    def display_update(self):
-        self.poses_d_update()  # re-calculate the display positions
-        # for the positions of robots on canvas
-        for i in range(self.N):
-            move = self.poses_d[i]-self.poses_d_last[i]
-            self.canvas.move(self.robots[i], move[0], move[1])
-        self.poses_d_last = np.copy(self.poses_d)  # reset pos of last frame
-        # for the connecting lines on canvas
-        for line in self.lines:
-            self.canvas.delete(line)  # erase the lines on canvas
-        self.lines = []  # prepare to re-create the lines
-        for i in range(self.N-1):
-            for j in range(i+1, self.N):
-                if self.conns[i,j] > 0:
-                    (x0, y0) = (self.poses_d[i][0] + ROBOT_RAD,
-                                self.poses_d[i][1] + ROBOT_RAD)
-                    (x1, y1) = (self.poses_d[j][0] + ROBOT_RAD,
-                                self.poses_d[j][1] + ROBOT_RAD)
-                    self.lines.append(self.canvas.create_line(
-                        x0, y0, x1, y1, fill=ROBOT_COLOR))
-        # update the new frame
-        self.root.update()
-
     # return the current observations of the robots, 
     def get_observations(self):
         observations = np.ones((self.N, self.view_div))
@@ -153,7 +129,7 @@ class AggrEnv():  # abbreviation for aggregation environment
                         observations[i, sec_index] = dist_ratio
         return observations, has_neighbor
 
-    # step update (the graphics is not included)
+    # step update (graphics operations are not included)
     # take actions as input, update the physical environment, return the rewards
     def step_update_without_display(self, actions):
         # update the new headings and physical positions
@@ -168,10 +144,38 @@ class AggrEnv():  # abbreviation for aggregation environment
         self.connections_update()
         # calculate the rewards
         rewards = np.zeros((self.N))
-        rewards_qualified = [False for i in range(self.N)]
         for i in range(self.N):
-            
-        return rewards, rewards_qualified
+            for j in range(self.N):
+                if j == i: continue
+                if self.conns[i,j] > 0:
+                    # accumulate the rewards
+                    ring_index = int(self.dists[i,j]/self.ring_wid)
+                    rewards[i] = rewards[i] + self.award_rings[ring_index]
+        return rewards
+
+    # update the display once
+    def display_update(self):
+        self.poses_d_update()  # re-calculate the display positions
+        # for the positions of robots on canvas
+        for i in range(self.N):
+            move = self.poses_d[i]-self.poses_d_last[i]
+            self.canvas.move(self.robots[i], move[0], move[1])
+        self.poses_d_last = np.copy(self.poses_d)  # reset pos of last frame
+        # for the connecting lines on canvas
+        for line in self.lines:
+            self.canvas.delete(line)  # erase the lines on canvas
+        self.lines = []  # prepare to re-create the lines
+        for i in range(self.N-1):
+            for j in range(i+1, self.N):
+                if self.conns[i,j] > 0:
+                    (x0, y0) = (self.poses_d[i][0] + ROBOT_RAD,
+                                self.poses_d[i][1] + ROBOT_RAD)
+                    (x1, y1) = (self.poses_d[j][0] + ROBOT_RAD,
+                                self.poses_d[j][1] + ROBOT_RAD)
+                    self.lines.append(self.canvas.create_line(
+                        x0, y0, x1, y1, fill=ROBOT_COLOR))
+        # update the new frame
+        self.root.update()
 
     def close_window_x(self):
         self.window_closed = True  # reverse exit flag

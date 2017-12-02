@@ -32,11 +32,12 @@ world_size_display = 600  # side length of display world, in pixels
 sensor_range = 10.0  # range of communication and sensing
 frame_speed = 2.0  # speed of the robot in physical world, distance per frame
 view_div = 36  # divide the 360 view into how many slices
-award_tiers = (1,3,5,3,1)  # the awards distributed for depth tiers in the range
+award_rings = (1,3,5,3,1)  # awards distributed for nested rings in the range
+    # from closest to farthest
 
 sim_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
                   sensor_range, frame_speed,
-                  view_div)
+                  view_div, award_rings)
 sleep_time = 0.5
 
 
