@@ -3,7 +3,6 @@
 # in every step, it can output observation of each robot
 # and take actions as input, calculate the reward, and output new observation again
 
-
 # Since tkinter draw circle on canvas by the pixel position of top left corner and right
 # bottom corner, it's more natural just use the top left corner as the coordinates of the
 # objects on canvas.
@@ -26,6 +25,7 @@
 # the heading direction is in the middle of a sector.
 # use [-math.pi, math.pi) as the range of heading direction
 
+
 from Tkinter import *
 import numpy as np
 import math
@@ -38,14 +38,18 @@ ROBOT_COLOR = 'blue'
 class AggrEnv():  # abbreviation for aggregation environment
     def __init__(self, robot_quantity, world_size_physical, world_size_display,
                  sensor_range, frame_speed,
-                 view_div, ):
+                 view_div, award_rings):
         self.N = robot_quantity
         self.size_p = world_size_physical  # side length of physical world, floating point
         self.size_d = world_size_display  # side length of display world in pixels, integer
         self.range = sensor_range  # range of communication and sensing
         self.speed = frame_speed  # physical distance per frame
-        self.div = view_div  # how many sectors to divide the 360 view
-        self.sec_wid = math.pi*2/self.div  # sector width
+        self.view_div = view_div  # how many sectors to divide the 360 view
+        self.sec_wid = math.pi*2 / self.view_div  # sector width
+        self.range_div = len(award_rings)  # number of award rings
+        self.award_rings = award_rings  # the awards distributed for different rings
+            # from farthest to closest
+        self.ring_wid = self.range/self.range_div  # width of the rings
         # root window, as the simulation window
         self.root = Tk()
         self.root.resizable(width=False, height=False)  # inhibit resizing
@@ -79,8 +83,8 @@ class AggrEnv():  # abbreviation for aggregation environment
         # create the connection map
         self.dists = []
         self.conns = []  # the connection map
-        self.connections_update()
         self.lines = []  # lines representing connections on canvas
+        self.connections_update()
 
     # update the poses_d, the display position of all robots
     def poses_d_update(self):
@@ -111,10 +115,9 @@ class AggrEnv():  # abbreviation for aggregation environment
             self.canvas.move(self.robots[i], move[0], move[1])
         self.poses_d_last = np.copy(self.poses_d)  # reset pos of last frame
         # for the connecting lines on canvas
-        self.connections_update()
         for line in self.lines:
-            self.canvas.delete(line)
-        self.lines = []  # reset to empty
+            self.canvas.delete(line)  # erase the lines on canvas
+        self.lines = []  # prepare to re-create the lines
         for i in range(self.N-1):
             for j in range(i+1, self.N):
                 if self.conns[i,j] > 0:
@@ -130,18 +133,18 @@ class AggrEnv():  # abbreviation for aggregation environment
     # return the current observations of the robots, 
     def get_observations(self):
         observations = np.ones((self.N, self.view_div))
-        has_neighbor = np.zeros(self.N)
+        has_neighbor = [False for i in range(self.N)]
         for i in range(self.N):
             for j in range(self.N):
                 if j == i: continuous
                 if self.conns[i,j] > 0:
                     # new neighbor identified, set the has_neighbor flag
-                    if not has_neighbor[i]: has_neighbor[i] = 1
+                    if not has_neighbor[i]: has_neighbor[i] = True
                     # find out which sector it belongs to, and calculate distance ratio
                     vec = self.poses_p[j]-self.poses_p[i]  # vector from host to neighbor
                     ang_diff = math.atan2(vec[1], vec[0]) - self.heading[i]
                         # angle diff from heading direction to the neighbor
-                    ang_diff = self.reset_radian(ang_diff  + self.sec_wid/2)
+                    ang_diff = self.set_radian_positive(ang_diff  + self.sec_wid/2)
                         # compensate for half sector width
                     sec_index = int(ang_diff / self.sec_wid)
                     dist_ratio = self.dist[i,j] / self.range
@@ -150,19 +153,43 @@ class AggrEnv():  # abbreviation for aggregation environment
                         observations[i, sec_index] = dist_ratio
         return observations, has_neighbor
 
-    # step update without updating the graphics, for speeding up simulation
-    def step_update_without_display(self):
-        pass
+    # step update (the graphics is not included)
+    # take actions as input, update the physical environment, return the rewards
+    def step_update_without_display(self, actions):
+        # update the new headings and physical positions
+        for i in range(self.N):
+            # the new heading directions
+            self.heading[i] = self.heading[i] + self.sec_wid * actions[i]
+            self.heading[i] = self.reset_radian(self.heading[i])
+            # one step of physical positions
+            head_vec = np.array([math.cos(self.heading[i]), math.sin(self.heading[i])])
+            self.poses_p[i] = self.poses_p[i] + self.speed * head_vec
+        # update the connection map
+        self.connections_update()
+        # calculate the rewards
+        rewards = np.zeros((self.N))
+        rewards_qualified = [False for i in range(self.N)]
+        for i in range(self.N):
+            
+        return rewards, rewards_qualified
 
     def close_window_x(self):
         self.window_closed = True  # reverse exit flag
         self.root.destroy()
 
-    # reset radian to range of [0, math.pi*2)
-    def reset_radian(self, radian):
+    # set radian to the positive range of [0, math.pi*2)
+    def set_radian_positive(self, radian):
         while radian < 0:
             radian = radian + math.pi*2
         while radian >= math.pi*2:
+            radian = radian - math.pi*2
+        return radian
+
+    # reset radian to the range of [-math.pi, math.pi)
+    def reset_radian(self, radian):
+        while radian < -math.pi:
+            radian = radian + math.pi*2
+        while radian >= math.pi:
             radian = radian - math.pi*2
         return radian
 
