@@ -31,12 +31,11 @@ from Tkinter import *
 import numpy as np
 import math
 
-ROBOT_SIZE = 10  # diameter of robot in pixels
-ROBOT_RAD = ROBOT_SIZE/2  # radius of robot, for compensation
-ROBOT_COLOR = 'blue'
-
 
 class AggrEnv():  # abbreviation for aggregation environment
+    ROBOT_SIZE = 10  # diameter of robot in pixels
+    ROBOT_RAD = ROBOT_SIZE/2  # radius of robot, for compensation
+    ROBOT_COLOR = 'blue'
     def __init__(self, robot_quantity, world_size_physical, world_size_display,
                  sensor_range, frame_speed,
                  view_div, award_rings):
@@ -53,7 +52,7 @@ class AggrEnv():  # abbreviation for aggregation environment
         # root window, as the simulation window
         self.root = Tk()
         self.root.resizable(width=False, height=False)  # inhibit resizing
-        win_size = (self.size_d+ROBOT_SIZE, self.size_d+ROBOT_SIZE)
+        win_size = (self.size_d+self.ROBOT_SIZE, self.size_d+self.ROBOT_SIZE)
             # maker window larger so as to compensate the robot size
         win_size_str = str(win_size[0])+'x'+str(win_size[1])
         self.root.geometry(win_size_str + '+100+100')  # widthxheight+xpos+ypos
@@ -77,8 +76,8 @@ class AggrEnv():  # abbreviation for aggregation environment
         for i in range(self.N):
             self.robots.append(self.canvas.create_oval(
                 self.poses_d[i][0], self.poses_d[i][1],
-                self.poses_d[i][0]+ROBOT_SIZE, self.poses_d[i][1]+ROBOT_SIZE,
-                outline=ROBOT_COLOR, fill=ROBOT_COLOR))
+                self.poses_d[i][0]+self.ROBOT_SIZE, self.poses_d[i][1]+self.ROBOT_SIZE,
+                outline=self.ROBOT_COLOR, fill=self.ROBOT_COLOR))
         self.heading = np.random.uniform(-math.pi, math.pi, (self.N))  # heading direction
         # create the connection map
         self.dists = []
@@ -168,12 +167,12 @@ class AggrEnv():  # abbreviation for aggregation environment
         for i in range(self.N-1):
             for j in range(i+1, self.N):
                 if self.conns[i,j] > 0:
-                    (x0, y0) = (self.poses_d[i][0] + ROBOT_RAD,
-                                self.poses_d[i][1] + ROBOT_RAD)
-                    (x1, y1) = (self.poses_d[j][0] + ROBOT_RAD,
-                                self.poses_d[j][1] + ROBOT_RAD)
+                    (x0, y0) = (self.poses_d[i][0] + self.ROBOT_RAD,
+                                self.poses_d[i][1] + self.ROBOT_RAD)
+                    (x1, y1) = (self.poses_d[j][0] + self.ROBOT_RAD,
+                                self.poses_d[j][1] + self.ROBOT_RAD)
                     self.lines.append(self.canvas.create_line(
-                        x0, y0, x1, y1, fill=ROBOT_COLOR))
+                        x0, y0, x1, y1, fill=self.ROBOT_COLOR))
         # update the new frame
         self.root.update()
 

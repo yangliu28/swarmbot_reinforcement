@@ -9,6 +9,14 @@
 import tensorflow as tf
 
 class PolicyGradient:
-    def __init__(self, )
+    def __init__(self, n_inputs, n_actions, learning_rate):
+        self.n_inputs = n_inputs
+        self.n_actions = n_actions
+        self.lr = learning_rate
+        # build the network
+        test edit
+
+    def deepnn(self, ):
+
 
 
