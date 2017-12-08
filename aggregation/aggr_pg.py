@@ -88,8 +88,8 @@ class PolicyGradient:
         # train on episode
         self.sess.run(self.train_step, feed_dict={
             self.obs: np.vstack(self.ep_obs),
-            self.acts: np.array(self.ep_acts),
-            self.ep_rews: rewards_norm,
+            self.acts_: np.array(self.ep_acts),
+            self.rews: rewards_norm,
             })
         # empty episode data after each training
         self.ep_obs, self.ep_acts, self.ep_rews = [], [], []

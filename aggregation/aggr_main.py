@@ -24,6 +24,7 @@
 
 
 from aggr_env import AggrEnv
+from aggr_pg import PolicyGradient
 import time
 
 robot_quantity = 30
