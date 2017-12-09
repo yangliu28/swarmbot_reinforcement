@@ -1,14 +1,10 @@
-# main program for the aggregation simulation with policy gradient learning
+# main program for the aggregation simulation with policy gradient
 
-# interact with the environment, and brain of reinforcement learning
-
-
-# the graphic updating frequency is set to the same as the training data generating
+# the graphics updating frequency is set to the same as the training data generating
 # frequency, the moving step needs to be small in graphics to make it smooth
-# but I did do so, because training data may need to be generated at a lower frequency
-# for the good of the training, the graphics needs to sacrifice
+# but I did not do so, because training data may need to be generated at a lower frequency
+# for the good of the training, so the smooth graphics is sacrified here
 
-# (following exceptions will be performed in the main program)
 # The rewards are given based on how long it can maintain certain distances to neighbors.
 # Exception 1:
     # If an action leads the robot from zero neighbor to non-zero neighbors. Although the
@@ -21,12 +17,15 @@
     # result is having no neighbor around, the action gets no reward and it won't go into
     # the training data, however the neural network is the cause of the result, so the
     # action and the zero reward should be part of the training data.
-
+# The above can be summarized much succinctly as, if the robot has non-zero neighbors before
+# the action, the action and reward should be in the training data.
 
 from aggr_env import AggrEnv
 from aggr_pg import PolicyGradient
 import time
+from copy import deepcopy
 
+# for simulation environment
 robot_quantity = 30
 world_size_physical = 100.0  # side length of physical world
 world_size_display = 600  # side length of display world, in pixels
@@ -35,17 +34,55 @@ frame_speed = 2.0  # speed of the robot in physical world, distance per frame
 view_div = 36  # divide the 360 view into how many slices
 award_rings = (1,3,5,3,1)  # awards distributed for nested rings in the range
     # from closest to farthest
+# for policy gradient
+learning_rate = 0.02
 
-sim_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
+# instantiate the aggregation environment
+aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
                   sensor_range, frame_speed,
                   view_div, award_rings)
-sleep_time = 0.5
+# instantiate the policy gradient
+PG = PolicyGradient(view_div, learning_rate)
+    
+# get the initial observations
+observations, has_neighbor = aggr_env.get_observations()
+# initialize variable for last statuses
+observations_last = deepcopy(observations)
+has_neighbor_last = deepcopy(has_neighbor)
 
+# the loop
+sleep_time = 0.1
+training_threshold = 100  # threshold of total rewards to trigger a training
+rewards_total = 0  # running total of rewards from the training data
+while True:
+    # decide actions base on observations
+    actions = [0 for i in range(robot_quantity)]  # 0 for no turning as default
+    for i in range(robot_quantity):
+        if has_neighbor[i]:  # has neighbor, choose action based on nn output
+            actions[i] = PG.choose_action(observations[i])
+            # if has no neighbors, will use default 0 for no turning
 
-# more save way is checking window_closed right before updating the display
+    # update one step of actions in environment
+    rewards = aggr_env.step_update_without_display(actions)
+    # check tkinter window right before updating display
+    if aggr_env.window_closed: break  # keep this like even if not updating display
+    aggr_env.display_update()
 
-while not sim_env.window_closed:
-    sim_env.display_update()
-    time.sleep(sleep_time)
+    # get the observations after the actions have been taken
+    observations, has_neighbor = aggr_env.get_observations()
+    for i in range(robot_quantity):
+        if has_neighbor_last[i]:
+            # store data for training as long as robot has neighbor before action
+            PG.store_transition(observations_last[i], actions[i], rewards[i])
+            rewards_total = rewards_total + rewards[i]
+    # update last status of observations and has_neighbor
+    observations_last = deepcopy(observations)
+    has_neighbor_last = deepcopy(has_neighbor)
+    # the learning
+    if rewards_total > training_threshold:
+        rewards_total = 0  # reset running total of rewards
+        PG.learn()
+
+    # time.sleep(sleep_time)
 
 

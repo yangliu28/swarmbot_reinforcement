@@ -26,11 +26,9 @@
 # the heading direction is in the middle of a sector.
 # use [-math.pi, math.pi) as the range of heading direction
 
-
 from Tkinter import *
 import numpy as np
 import math
-
 
 class AggrEnv():  # abbreviation for aggregation environment
     ROBOT_SIZE = 10  # diameter of robot in pixels
@@ -139,6 +137,19 @@ class AggrEnv():  # abbreviation for aggregation environment
             # one step of physical positions
             head_vec = np.array([math.cos(self.heading[i]), math.sin(self.heading[i])])
             self.poses_p[i] = self.poses_p[i] + self.speed * head_vec
+            # wall bouncing algorithm, keep robots inside the window
+            if self.poses_p[i,0] >= self.size_p:  # out of right boundary
+                if head_vec[0] > 0:  # moving direction on x is pointing right
+                    self.heading[i] = self.reset_radian(2*(math.pi/2) - self.heading[i])
+            elif self.poses_p[i,0] <= 0:  # out of left boundary
+                if head_vec[0] < 0:  # moving direction on x is pointing left
+                    self.heading[i] = self.reset_radian(2*(math.pi/2) - self.heading[i])
+            if self.poses_p[i,1] >= self.size_p:  # out of top boundary
+                if head_vec[1] > 0:  # moving direction on y is pointing up
+                    self.heading[i] = self.reset_radian(2*(0) - self.heading[i])
+            elif self.poses_p[i,1] <= 0:  # out of bottom boundary
+                if head_vec[1] < 0:  # moving direction on y is pointing down
+                    self.heading[i] = self.reset_radian(2*(0) - self.heading[i])
         # update the connection map
         self.connections_update()
         # calculate the rewards
@@ -155,7 +166,7 @@ class AggrEnv():  # abbreviation for aggregation environment
     # update the display once
     def display_update(self):
         self.poses_d_update()  # re-calculate the display positions
-        # for the positions of robots on canvas
+        # for the robots on canvas
         for i in range(self.N):
             move = self.poses_d[i]-self.poses_d_last[i]
             self.canvas.move(self.robots[i], move[0], move[1])
