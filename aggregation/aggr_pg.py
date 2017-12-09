@@ -84,7 +84,7 @@ class PolicyGradient:
         self.ep_rews.append(reward)
 
     def learn(self):
-        rewards_norm = self.rewards_norm()
+        rewards_norm = self.norm_rewards()
         # train on episode
         self.sess.run(self.train_step, feed_dict={
             self.obs: np.vstack(self.ep_obs),
@@ -95,8 +95,11 @@ class PolicyGradient:
         self.ep_obs, self.ep_acts, self.ep_rews = [], [], []
         return rewards_norm
 
-    # normalize the rewards
-    def rewards_norm(self):
-        pass
+    # normalize episode rewards
+    def norm_rewards(self):
+        norm_ep_rews = np.array(self.ep_rews)
+        norm_ep_rews = norm_ep_rews - np.mean(norm_ep_rews)
+        norm_ep_rews = norm_ep_rews / np.std(norm_ep_rews)
+        return norm_ep_rews
 
 
