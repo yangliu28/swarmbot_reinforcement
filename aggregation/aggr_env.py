@@ -157,6 +157,9 @@ class AggrEnv():  # abbreviation for aggregation environment
             head_vec = np.array([math.cos(self.heading[i]), math.sin(self.heading[i])])
             self.poses_p[i] = self.poses_p[i] + self.speed * head_vec
             # wall bouncing algorithm, keep robots inside the window
+            # It is borrowed from my previous simulations in 'swarm_formation_sim', but is
+            # different that positions of the robots have been bounced right away, instead
+            # of using one more step of update to make it take effect.
             if self.poses_p[i,0] >= self.size_p:  # out of right boundary
                 if head_vec[0] > 0:  # moving direction on x is pointing right
                     self.heading[i] = self.reset_radian(2*(math.pi/2) - self.heading[i])

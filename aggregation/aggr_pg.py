@@ -53,9 +53,13 @@ class PolicyGradient:
             kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
             bias_initializer=tf.constant_initializer(0.1),
             name='dense3')
+        # dropout
+        with tf.name_scope('dropout'):
+            self.keep_prob = tf.placeholder(tf.float32)
+            dense3_drop = tf.nn.dropout(dense3, self.keep_prob)
         # fc4
         acts = tf.layers.dense(
-            inputs=dense3,
+            inputs=dense3_drop,
             units=self.n_div,
             activation=tf.nn.relu,
             kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
@@ -74,8 +78,8 @@ class PolicyGradient:
 
     # randomly choice an action based on action probabilities from nn
     def choose_action(self, observation):
-        acts_prob = self.sess.run(
-            self.acts_softmax, feed_dict={self.obs: observation[np.newaxis, :]})
+        acts_prob = self.sess.run(self.acts_softmax, feed_dict={
+            self.obs: observation[np.newaxis, :], self.keep_prob: 1.0})
         action = np.random.choice(range(self.n_div), p=acts_prob.ravel())
         return action
 
@@ -91,12 +95,15 @@ class PolicyGradient:
         print("training count " + str(self.training_count))
         # normalize episode rewards
         rewards_norm = self.norm_rewards()
-        # train on episode
-        self.sess.run(self.train_step, feed_dict={
-            self.obs: np.vstack(self.ep_obs),
-            self.acts_: np.array(self.ep_acts),
-            self.rews: rewards_norm,
-            })
+        print(rewards_norm)
+        # train on one episode of data, for multiple times
+        for _ in range(10):
+            self.sess.run(self.train_step, feed_dict={
+                self.obs: np.vstack(self.ep_obs),
+                self.acts_: np.array(self.ep_acts),
+                self.rews: rewards_norm,
+                self.keep_prob: 0.5
+                })
         # empty episode data after each training
         self.ep_obs, self.ep_acts, self.ep_rews = [], [], []
         return rewards_norm

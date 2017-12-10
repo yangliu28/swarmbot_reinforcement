@@ -29,14 +29,14 @@ import numpy as np
 robot_quantity = 30
 world_size_physical = 100.0  # side length of physical world
 world_size_display = 600  # side length of display world, in pixels
-sensor_range = 10.0  # range of communication and sensing
-frame_speed = 2.0  # speed of the robot in physical world, distance per frame
+sensor_range = 10.0  # range of communication and sensing, radius of the sensing circle
+frame_speed = 0.3  # speed of the robot in physical world, distance per frame
 view_div = 36  # divide the 360 view into how many slices
 award_rings = (1,3,5,3,1)  # awards distributed for nested rings in the range
     # from closest to farthest
 need_pause = True
 # for policy gradient
-learning_rate = 0.02
+learning_rate = 0.001
 
 # instantiate the aggregation environment
 aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
@@ -54,7 +54,7 @@ has_neighbor_last = has_neighbor[:]
 
 # the loop
 sleep_time = 0.1
-training_threshold = 200  # threshold of total rewards to trigger a training
+training_threshold = 500  # threshold of total rewards to trigger a training
 rewards_total = 0  # running total of rewards from the training data
 while True:
     # decide actions base on observations
