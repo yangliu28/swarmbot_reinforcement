@@ -26,6 +26,19 @@
 # the heading direction is in the middle of a sector.
 # use [-math.pi, math.pi) as the range of heading direction
 
+# A few ways I have tried to add the pause function:
+# 1.Multi-thread the mainloop() function so can bind key pressed action to a callback. The
+# correct way is build the simulation environment class as inherited from  threading.Thread.
+# Following is the link to do so. But problem not only appears when "different apartment"
+# error occurs, but other Tk window related operations will be on different theread, and
+# incurs errors too.
+# https://stackoverflow.com/questions/459083/how-do-you-run-your-own-code-alongside-tkinters-event-loop
+# 2.The after() method from Tk sound a quick fix, but there isn't an appropriate way to
+# check keyboard input like the callback functions.
+# 3.This is the way I end up with. I directed the toplevel protocol 'WM_TAKE_FOCUS' to
+# reverse the status of a variable, which indicates whether the simulation should be paused.
+
+
 from Tkinter import *
 import numpy as np
 import math
@@ -36,7 +49,8 @@ class AggrEnv():  # abbreviation for aggregation environment
     ROBOT_COLOR = 'blue'
     def __init__(self, robot_quantity, world_size_physical, world_size_display,
                  sensor_range, frame_speed,
-                 view_div, award_rings):
+                 view_div, award_rings,
+                 need_pause):
         self.N = robot_quantity
         self.size_p = world_size_physical  # side length of physical world, floating point
         self.size_d = world_size_display  # side length of display world in pixels, integer
@@ -47,6 +61,7 @@ class AggrEnv():  # abbreviation for aggregation environment
         self.range_div = len(award_rings)  # number of award rings
         self.award_rings = award_rings  # the awards distributed for distance rings
         self.ring_wid = self.range/self.range_div  # width of the rings
+        self.need_pause = need_pause  # will optionally add pause function
         # root window, as the simulation window
         self.root = Tk()
         self.root.resizable(width=False, height=False)  # inhibit resizing
@@ -58,8 +73,11 @@ class AggrEnv():  # abbreviation for aggregation environment
         # self.root.iconbitmap('../ants.png')  # not working
         ico_img = PhotoImage(file='../ants.png')  # image file under parent directory
         self.root.tk.call('wm', 'iconphoto', self.root._w, ico_img)  # set window icon
-        self.root.protocol('WM_DELETE_WINDOW', self.close_window_x)
+        self.root.protocol('WM_DELETE_WINDOW', self.close_window)
         self.window_closed = False  # flag for window closed
+        if self.need_pause:
+            self.root.protocol('WM_TAKE_FOCUS', self.pause_reverse)
+            self.pause_on = False
         # create the canvas, as a holder for all graphics objects
         self.canvas = Canvas(self.root, background='white')
         self.canvas.pack(fill=BOTH, expand=True)  # fill entire window
@@ -142,16 +160,19 @@ class AggrEnv():  # abbreviation for aggregation environment
             if self.poses_p[i,0] >= self.size_p:  # out of right boundary
                 if head_vec[0] > 0:  # moving direction on x is pointing right
                     self.heading[i] = self.reset_radian(2*(math.pi/2) - self.heading[i])
-                    self.
+                    self.poses_p[i,0] = 2*self.size_p - self.poses_p[i,0]
             elif self.poses_p[i,0] <= 0:  # out of left boundary
                 if head_vec[0] < 0:  # moving direction on x is pointing left
                     self.heading[i] = self.reset_radian(2*(math.pi/2) - self.heading[i])
+                    self.poses_p[i,0] = -self.poses_p[i,0]
             if self.poses_p[i,1] >= self.size_p:  # out of top boundary
                 if head_vec[1] > 0:  # moving direction on y is pointing up
                     self.heading[i] = self.reset_radian(2*(0) - self.heading[i])
+                    self.poses_p[i,1] = 2*self.size_p - self.poses_p[i,1]
             elif self.poses_p[i,1] <= 0:  # out of bottom boundary
                 if head_vec[1] < 0:  # moving direction on y is pointing down
                     self.heading[i] = self.reset_radian(2*(0) - self.heading[i])
+                    self.poses_p[i,1] = -self.poses_p[i,1]
         # update the connection map
         self.connections_update()
         # calculate the rewards
@@ -189,9 +210,14 @@ class AggrEnv():  # abbreviation for aggregation environment
         # update the new frame
         self.root.update()
 
-    def close_window_x(self):
+    # close window routine
+    def close_window(self):
         self.window_closed = True  # reverse exit flag
         self.root.destroy()
+
+    # callback to reverse the pause flag
+    def pause_reverse(self):
+        self.pause_on = not self.pause_on
 
     # set radian to the positive range of [0, math.pi*2)
     def set_radian_positive(self, radian):

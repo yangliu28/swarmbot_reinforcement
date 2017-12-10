@@ -34,13 +34,15 @@ frame_speed = 2.0  # speed of the robot in physical world, distance per frame
 view_div = 36  # divide the 360 view into how many slices
 award_rings = (1,3,5,3,1)  # awards distributed for nested rings in the range
     # from closest to farthest
+need_pause = True
 # for policy gradient
 learning_rate = 0.02
 
 # instantiate the aggregation environment
 aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
                   sensor_range, frame_speed,
-                  view_div, award_rings)
+                  view_div, award_rings,
+                  need_pause)
 # instantiate the policy gradient
 PG = PolicyGradient(view_div, learning_rate)
     
@@ -66,6 +68,10 @@ while True:
     rewards = aggr_env.step_update_without_display(actions)
     # check tkinter window right before updating display
     if aggr_env.window_closed: break  # keep this like even if not updating display
+    # will halt the program here if pause switch is on
+    if need_pause:
+        while aggr_env.pause_on:
+            aggr_env.root.update()  # need this tk window update
     aggr_env.display_update()
 
     # get the observations after the actions have been taken
