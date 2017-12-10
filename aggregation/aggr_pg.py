@@ -21,11 +21,12 @@ class PolicyGradient:
         self.ep_obs, self.ep_acts, self.ep_rews = [], [], []  # one episode of data
         self.build_net()
         self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
 
     def build_net(self):
         with tf.name_scope('inputs'):
             self.obs = tf.placeholder(tf.float32, [None, self.n_div], name='observations')
-            self.acts_ = tf.placeholder(tf.float32, [None, ], name='actions')  # labels
+            self.acts_ = tf.placeholder(tf.int32, [None, ], name='actions')  # labels
             self.rews = tf.placeholder(tf.float32, [None, ], name='rewards')
         # fc1
         dense1 = tf.layers.dense(
@@ -84,6 +85,7 @@ class PolicyGradient:
         self.ep_rews.append(reward)
 
     def learn(self):
+        print("training")
         rewards_norm = self.norm_rewards()
         # train on episode
         self.sess.run(self.train_step, feed_dict={

@@ -105,11 +105,12 @@ class AggrEnv():  # abbreviation for aggregation environment
 
     # return the current observations of the robots, 
     def get_observations(self):
-        observations = [[1.0 for j in range(self.view_div)] for i in range(self.N)]
+        observations = np.ones((self.N, self.view_div))
+        # observations = [[1.0 for j in range(self.view_div)] for i in range(self.N)]
         has_neighbor = [False for i in range(self.N)]
         for i in range(self.N):
             for j in range(self.N):
-                if j == i: continuous
+                if j == i: continue
                 if self.conns[i,j] > 0:
                     # new neighbor identified, set the has_neighbor flag
                     if not has_neighbor[i]: has_neighbor[i] = True
@@ -120,10 +121,10 @@ class AggrEnv():  # abbreviation for aggregation environment
                     ang_diff = self.set_radian_positive(ang_diff  + self.sec_wid/2)
                         # compensate for half sector width
                     sect_index = int(ang_diff / self.sec_wid)
-                    dist_ratio = self.dist[i,j] / self.range
-                    if dist_ratio < observations[i][sect_index]:
+                    dist_ratio = self.dists[i,j] / self.range
+                    if dist_ratio < observations[i,sect_index]:
                         # only the closest neighbor in that sector will be recorded
-                        observations[i][sect_index] = dist_ratio
+                        observations[i,sect_index] = dist_ratio
         return observations, has_neighbor
 
     # step update (graphics operations are not included)

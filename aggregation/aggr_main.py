@@ -23,7 +23,7 @@
 from aggr_env import AggrEnv
 from aggr_pg import PolicyGradient
 import time
-from copy import deepcopy
+import numpy as np
 
 # for simulation environment
 robot_quantity = 30
@@ -47,8 +47,8 @@ PG = PolicyGradient(view_div, learning_rate)
 # get the initial observations
 observations, has_neighbor = aggr_env.get_observations()
 # initialize variable for last statuses
-observations_last = deepcopy(observations)
-has_neighbor_last = deepcopy(has_neighbor)
+observations_last = np.copy(observations)
+has_neighbor_last = has_neighbor[:]
 
 # the loop
 sleep_time = 0.1
@@ -76,13 +76,13 @@ while True:
             PG.store_transition(observations_last[i], actions[i], rewards[i])
             rewards_total = rewards_total + rewards[i]
     # update last status of observations and has_neighbor
-    observations_last = deepcopy(observations)
-    has_neighbor_last = deepcopy(has_neighbor)
+    observations_last = np.copy(observations)
+    has_neighbor_last = has_neighbor[:]
     # the learning
     if rewards_total > training_threshold:
         rewards_total = 0  # reset running total of rewards
         PG.learn()
 
-    # time.sleep(sleep_time)
+    time.sleep(sleep_time)
 
 
