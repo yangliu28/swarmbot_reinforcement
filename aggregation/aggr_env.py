@@ -142,6 +142,7 @@ class AggrEnv():  # abbreviation for aggregation environment
             if self.poses_p[i,0] >= self.size_p:  # out of right boundary
                 if head_vec[0] > 0:  # moving direction on x is pointing right
                     self.heading[i] = self.reset_radian(2*(math.pi/2) - self.heading[i])
+                    self.
             elif self.poses_p[i,0] <= 0:  # out of left boundary
                 if head_vec[0] < 0:  # moving direction on x is pointing left
                     self.heading[i] = self.reset_radian(2*(math.pi/2) - self.heading[i])

@@ -52,7 +52,7 @@ has_neighbor_last = has_neighbor[:]
 
 # the loop
 sleep_time = 0.1
-training_threshold = 100  # threshold of total rewards to trigger a training
+training_threshold = 200  # threshold of total rewards to trigger a training
 rewards_total = 0  # running total of rewards from the training data
 while True:
     # decide actions base on observations

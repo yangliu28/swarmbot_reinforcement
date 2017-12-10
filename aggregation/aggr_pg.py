@@ -11,6 +11,7 @@ import numpy as np
 
 class PolicyGradient:
     MULTIPLIER = 4  # control the size of the hidden layers
+    training_count = 0  # record times of training
     def __init__(self, n_div, learning_rate):
         self.n_div = n_div  # number of neurons for both inputs and outputs
             # observation as inputs, action as outputs
@@ -85,7 +86,10 @@ class PolicyGradient:
         self.ep_rews.append(reward)
 
     def learn(self):
-        print("training")
+        # count training times
+        self.training_count = self.training_count + 1
+        print("training count " + str(self.training_count))
+        # normalize episode rewards
         rewards_norm = self.norm_rewards()
         # train on episode
         self.sess.run(self.train_step, feed_dict={
