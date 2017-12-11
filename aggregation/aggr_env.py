@@ -38,6 +38,9 @@
 # 3.This is the way I end up with. I directed the toplevel protocol 'WM_TAKE_FOCUS' to
 # reverse the status of a variable, which indicates whether the simulation should be paused.
 
+# change the reward from pure score to the change of score
+# in this case, should not use the award accumulation to trigger training
+# but number of valid data entries
 
 from Tkinter import *
 import numpy as np
@@ -49,7 +52,7 @@ class AggrEnv():  # abbreviation for aggregation environment
     ROBOT_COLOR = 'blue'
     def __init__(self, robot_quantity, world_size_physical, world_size_display,
                  sensor_range, frame_speed,
-                 view_div, award_rings,
+                 view_div, score_rings,
                  need_pause):
         self.N = robot_quantity
         self.size_p = world_size_physical  # side length of physical world, floating point
@@ -58,8 +61,8 @@ class AggrEnv():  # abbreviation for aggregation environment
         self.speed = frame_speed  # physical distance per frame
         self.view_div = view_div  # how many sectors to divide the 360 view
         self.sec_wid = math.pi*2 / self.view_div  # sector width
-        self.range_div = len(award_rings)  # number of award rings
-        self.award_rings = award_rings  # the awards distributed for distance rings
+        self.range_div = len(score_rings)  # number of award rings
+        self.score_rings = score_rings  # the awards distributed for distance rings
         self.ring_wid = self.range/self.range_div  # width of the rings
         self.need_pause = need_pause  # will optionally add pause function
         # root window, as the simulation window
@@ -100,6 +103,8 @@ class AggrEnv():  # abbreviation for aggregation environment
         self.conns = []  # the connection map
         self.lines = []  # lines representing connections on canvas
         self.connections_update()
+        # for the reward system
+        self.scores_last = np.zeros((self.N))  # assume zero scores for the start
 
     # update the poses_d, the display position of all robots
     def poses_d_update(self):
@@ -178,15 +183,18 @@ class AggrEnv():  # abbreviation for aggregation environment
                     self.poses_p[i,1] = -self.poses_p[i,1]
         # update the connection map
         self.connections_update()
-        # calculate the rewards
+        # calculate the rewards by the changes of the scores
         rewards = np.zeros((self.N))
+        scores = np.zeros((self.N))
         for i in range(self.N):
             for j in range(self.N):
                 if j == i: continue
                 if self.conns[i,j] > 0:
-                    # accumulate the rewards
+                    # accumulate the score
                     ring_index = int(self.dists[i,j]/self.ring_wid)
-                    rewards[i] = rewards[i] + self.award_rings[ring_index]
+                    scores[i] = scores[i] + self.score_rings[ring_index]
+        rewards = scores - self.scores_last
+        self.scores_last = np.copy(scores)
         return rewards
 
     # update the display once

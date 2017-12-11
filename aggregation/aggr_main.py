@@ -32,7 +32,7 @@ world_size_display = 600  # side length of display world, in pixels
 sensor_range = 10.0  # range of communication and sensing, radius of the sensing circle
 frame_speed = 0.3  # speed of the robot in physical world, distance per frame
 view_div = 36  # divide the 360 view into how many slices
-award_rings = (1,3,5,3,1)  # awards distributed for nested rings in the range
+score_rings = (2,4,6,4,2)  # scores distributed for nested rings in the range
     # from closest to farthest
 need_pause = True
 # for policy gradient
@@ -41,7 +41,7 @@ learning_rate = 0.001
 # instantiate the aggregation environment
 aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
                   sensor_range, frame_speed,
-                  view_div, award_rings,
+                  view_div, score_rings,
                   need_pause)
 # instantiate the policy gradient
 PG = PolicyGradient(view_div, learning_rate)
@@ -54,8 +54,8 @@ has_neighbor_last = has_neighbor[:]
 
 # the loop
 sleep_time = 0.1
-training_threshold = 500  # threshold of total rewards to trigger a training
-rewards_total = 0  # running total of rewards from the training data
+training_threshold = 100  # threshold of number of samples to trigger a training
+data_total = 0  # running total of training samples
 while True:
     # decide actions base on observations
     actions = [0 for i in range(robot_quantity)]  # 0 for no turning as default
@@ -80,13 +80,13 @@ while True:
         if has_neighbor_last[i]:
             # store data for training as long as robot has neighbor before action
             PG.store_transition(observations_last[i], actions[i], rewards[i])
-            rewards_total = rewards_total + rewards[i]
+            data_total = data_total + 1
     # update last status of observations and has_neighbor
     observations_last = np.copy(observations)
     has_neighbor_last = has_neighbor[:]
     # the learning
-    if rewards_total > training_threshold:
-        rewards_total = 0  # reset running total of rewards
+    if data_total >= training_threshold:
+        data_total = 0  # reset running total of rewards
         PG.learn()
 
     time.sleep(sleep_time)

@@ -80,6 +80,7 @@ class PolicyGradient:
     def choose_action(self, observation):
         acts_prob = self.sess.run(self.acts_softmax, feed_dict={
             self.obs: observation[np.newaxis, :], self.keep_prob: 1.0})
+        print(acts_prob)
         action = np.random.choice(range(self.n_div), p=acts_prob.ravel())
         return action
 
@@ -90,12 +91,12 @@ class PolicyGradient:
         self.ep_rews.append(reward)
 
     def learn(self):
-        # count training times
+        # print the training count
         self.training_count = self.training_count + 1
         print("training count " + str(self.training_count))
         # normalize episode rewards
         rewards_norm = self.norm_rewards()
-        print(rewards_norm)
+        # print(rewards_norm)
         # train on one episode of data, for multiple times
         for _ in range(10):
             self.sess.run(self.train_step, feed_dict={
