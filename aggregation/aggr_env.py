@@ -37,6 +37,7 @@
 # check keyboard input like the callback functions.
 # 3.This is the way I end up with. I directed the toplevel protocol 'WM_TAKE_FOCUS' to
 # reverse the status of a variable, which indicates whether the simulation should be paused.
+# (another source: https://gordonlesti.com/use-tkinter-without-mainloop/)
 
 # change the reward from pure score to the change of score
 # in this case, should not use the award accumulation to trigger training
@@ -128,8 +129,9 @@ class AggrEnv():  # abbreviation for aggregation environment
 
     # return the current observations of the robots, 
     def get_observations(self):
-        observations = np.ones((self.N, self.view_div))
         # observations = [[1.0 for j in range(self.view_div)] for i in range(self.N)]
+        # observations = np.ones((self.N, self.view_div))
+        observations = np.zeros((self.N, self.view_div))
         has_neighbor = [False for i in range(self.N)]
         for i in range(self.N):
             for j in range(self.N):
@@ -145,7 +147,8 @@ class AggrEnv():  # abbreviation for aggregation environment
                         # compensate for half sector width
                     sect_index = int(ang_diff / self.sec_wid)
                     dist_ratio = self.dists[i,j] / self.range
-                    if dist_ratio < observations[i,sect_index]:
+                    if (observations[i,sect_index] == 0 or
+                        dist_ratio < observations[i,sect_index]):
                         # only the closest neighbor in that sector will be recorded
                         observations[i,sect_index] = dist_ratio
         return observations, has_neighbor

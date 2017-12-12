@@ -78,6 +78,7 @@ class PolicyGradient:
 
     # randomly choice an action based on action probabilities from nn
     def choose_action(self, observation):
+        print(observation)
         acts_prob = self.sess.run(self.acts_softmax, feed_dict={
             self.obs: observation[np.newaxis, :], self.keep_prob: 1.0})
         print(acts_prob)
@@ -98,7 +99,7 @@ class PolicyGradient:
         rewards_norm = self.norm_rewards()
         # print(rewards_norm)
         # train on one episode of data, for multiple times
-        for _ in range(10):
+        for _ in range(1):
             self.sess.run(self.train_step, feed_dict={
                 self.obs: np.vstack(self.ep_obs),
                 self.acts_: np.array(self.ep_acts),

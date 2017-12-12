@@ -36,7 +36,7 @@ score_rings = (2,4,6,4,2)  # scores distributed for nested rings in the range
     # from closest to farthest
 need_pause = True
 # for policy gradient
-learning_rate = 0.001
+learning_rate = 0.005
 
 # instantiate the aggregation environment
 aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
