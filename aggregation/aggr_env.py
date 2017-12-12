@@ -46,6 +46,18 @@
 # in this case, should not use the award accumulation to trigger training
 # but number of valid data entries
 
+# Translate the observation to data format
+# For each sector, if there is a neighbor, it will be represented as distance ratio. That
+# is, the distance to the host robot divided by the sensing range. If there are multiple
+# robots at same sector, only the closest one will be recorded. If there is no neighbor in
+# a sector, it is a one, like there is a neighbor just outside the sensing range. But on
+# second thought, zero might be better, because one means excitation of the activation
+# function.
+# A compromise for these two is to translate the observation to the degree of closeness on
+# the sectors. If there is neighbor on a sector, it is represented as one subtracts the
+# distance ratio of the closest robot. If there is no neighbor, it is just zero.
+
+
 from Tkinter import *
 import numpy as np
 import math
@@ -132,9 +144,7 @@ class AggrEnv():  # abbreviation for aggregation environment
 
     # return the current observations of the robots, 
     def get_observations(self):
-        # observations = [[1.0 for j in range(self.view_div)] for i in range(self.N)]
-        observations = np.ones((self.N, self.view_div))
-        # observations = np.zeros((self.N, self.view_div))
+        observations = np.zeros((self.N, self.view_div))
         has_neighbor = [False for i in range(self.N)]
         for i in range(self.N):
             for j in range(self.N):
@@ -150,10 +160,10 @@ class AggrEnv():  # abbreviation for aggregation environment
                         # compensate for half sector width
                     sect_index = int(ang_diff / self.sec_wid)
                     dist_ratio = self.dists[i,j] / self.range
-                    if (observations[i,sect_index] == 0 or
-                        dist_ratio < observations[i,sect_index]):
-                        # only the closest neighbor in that sector will be recorded
-                        observations[i,sect_index] = dist_ratio
+                    closeness = 1 - dist_ratio  # the degree of closeness
+                    if closeness > observations[i,sect_index]:
+                        # only the closest neighbor in the sector will be recorded
+                        observations[i,sect_index] = closeness
         return observations, has_neighbor
 
     # step update (graphics operations are not included)

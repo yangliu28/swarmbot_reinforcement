@@ -36,7 +36,7 @@ score_rings = (2,4,6,4,2)  # scores distributed for nested rings in the range
     # from closest to farthest
 need_pause = True
 # for policy gradient
-learning_rate = 0.005
+learning_rate = 0.5
 training_repeats = 100  # training each episode for these times
 
 # instantiate the aggregation environment

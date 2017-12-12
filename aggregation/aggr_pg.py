@@ -30,6 +30,7 @@ class PolicyGradient:
             self.obs = tf.placeholder(tf.float32, [None, self.n_div], name='observations')
             self.acts_ = tf.placeholder(tf.int32, [None, ], name='actions')  # labels
             self.rews = tf.placeholder(tf.float32, [None, ], name='rewards')
+            self.keep_prob = tf.placeholder(tf.float32)
         # fc1
         dense1 = tf.layers.dense(
             inputs=self.obs,
@@ -39,31 +40,11 @@ class PolicyGradient:
             kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
             bias_initializer=tf.constant_initializer(0.1),
             name='dense1')
-        # fc2
-        dense2 = tf.layers.dense(
-            inputs=dense1,
-            units=self.n_full,
-            # activation=tf.nn.relu,
-            activation=tf.nn.sigmoid,
-            kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
-            bias_initializer=tf.constant_initializer(0.1),
-            name='dense2')
-        # fc3
-        dense3 = tf.layers.dense(
-            inputs=dense2,
-            units=self.n_full,
-            # activation=tf.nn.relu,
-            activation=tf.nn.sigmoid,
-            kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
-            bias_initializer=tf.constant_initializer(0.1),
-            name='dense3')
         # dropout
-        with tf.name_scope('dropout'):
-            self.keep_prob = tf.placeholder(tf.float32)
-            dense3_drop = tf.nn.dropout(dense3, self.keep_prob)
+        dense1_drop = tf.nn.dropout(dense1, self.keep_prob)
         # fc4
         acts = tf.layers.dense(
-            inputs=dense3_drop,
+            inputs=dense1_drop,
             units=self.n_div,
             # activation=tf.nn.relu,
             activation=tf.nn.sigmoid,
@@ -83,10 +64,10 @@ class PolicyGradient:
 
     # randomly choice an action based on action probabilities from nn
     def choose_action(self, observation):
-        # print(observation)
+        print(observation)
         acts_prob = self.sess.run(self.acts_softmax, feed_dict={
             self.obs: observation[np.newaxis, :], self.keep_prob: 1.0})
-        # print(acts_prob)
+        print(acts_prob)
         action = np.random.choice(range(self.n_div), p=acts_prob.ravel())
         return action
 
