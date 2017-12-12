@@ -37,7 +37,7 @@ score_rings = (2,4,6,4,2)  # scores distributed for nested rings in the range
 need_pause = True
 # for policy gradient
 learning_rate = 0.5
-training_repeats = 100  # training each episode for these times
+training_repeats = 100  # repeat training each episode for these times
 
 # instantiate the aggregation environment
 aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
@@ -55,7 +55,7 @@ has_neighbor_last = has_neighbor[:]
 
 # the loop
 sleep_time = 0.1
-training_threshold = 500  # threshold of number of samples to trigger a training
+episode_threshold = 200  # threshold of number of samples to trigger a training
 data_total = 0  # running total of training samples
 while True:
     # decide actions base on observations
@@ -79,7 +79,7 @@ while True:
     # get the observations after the actions have been taken
     observations, has_neighbor = aggr_env.get_observations()
     for i in range(robot_quantity):
-        if has_neighbor_last[i]:
+        if has_neighbor_last[i] and rewards[i] != 0:  # avoid zero reward
             # store data for training as long as robot has neighbor before action
             PG.store_transition(observations_last[i], actions[i], rewards[i])
             data_total = data_total + 1
@@ -87,10 +87,10 @@ while True:
     observations_last = np.copy(observations)
     has_neighbor_last = has_neighbor[:]
     # the learning
-    if data_total >= training_threshold:
+    if data_total >= episode_threshold:
         data_total = 0  # reset running total of rewards
         PG.learn()
 
-    time.sleep(sleep_time)
+    # time.sleep(sleep_time)
 
 
