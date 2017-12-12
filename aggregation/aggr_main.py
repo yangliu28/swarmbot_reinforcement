@@ -67,6 +67,7 @@ while True:
 
     # update one step of actions in environment
     rewards = aggr_env.step_update_without_display(actions)
+    print(rewards)
     # check tkinter window right before updating display
     if aggr_env.window_closed: break  # keep this like even if not updating display
     # will halt the program here if pause switch is on

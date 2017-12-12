@@ -114,13 +114,15 @@ class AggrEnv():  # abbreviation for aggregation environment
                 self.poses_d[i][0]+self.ROBOT_SIZE, self.poses_d[i][1]+self.ROBOT_SIZE,
                 outline=self.ROBOT_COLOR, fill=self.ROBOT_COLOR))
         self.heading = np.random.uniform(-math.pi, math.pi, (self.N))  # heading direction
-        # create the connection map
-        self.dists = []
-        self.conns = []  # the connection map
+        # create the connection map and score map
+        self.dists = np.zeros((self.N, self.N))
+        self.conns = np.zeros((self.N, self.N))  # connection map
         self.lines = []  # lines representing connections on canvas
         self.connections_update()
-        # for the reward system
-        self.scores_last = np.zeros((self.N))  # assume zero scores for the start
+        self.conns_last = np.copy(self.conns)  # connection map of last state
+        self.scores = np.zeros((self.N, self.N))  # score map, for calculating the rewards
+        self.scores_update()  # update the variable self.scores
+        self.scores_last = np.copy(self.scores)  # score map of last state
 
     # update the poses_d, the display position of all robots
     def poses_d_update(self):
@@ -129,7 +131,7 @@ class AggrEnv():  # abbreviation for aggregation environment
             pos_y = int((1-self.poses_p[i][1]/self.size_p) * self.size_d)
             self.poses_d[i] = np.array([pos_x, pos_y])
 
-    # update the distances and connection map
+    # update all distances and the connection map(self.conns)
     def connections_update(self):
         self.dists = np.zeros((self.N, self.N))
         self.conns = np.zeros((self.N, self.N))
@@ -141,6 +143,20 @@ class AggrEnv():  # abbreviation for aggregation environment
                 if dist < self.range:
                     self.conns[i,j] = 1
                     self.conns[j,i] = 1
+
+    # update the score for each pair of robots based on the score rings
+    # should be performed after connections_update()
+    def scores_update(self, ):
+        self.scores = np.zeros((self.N, self.N))
+        for i in range(self.N-1):
+            for j in range(i+1, self.N):
+                if self.conns[i,j] > 0:
+                    ring_index = int(self.dists[i,j]/self.ring_wid)
+                    self.scores[i,j] = self.score_rings[ring_index]
+                    self.scores[j,i] = self.score_rings[ring_index]
+                else:
+                    self.scores[i,j] = 0
+                    self.scores[j,i] = 0
 
     # return the current observations of the robots, 
     def get_observations(self):
@@ -197,20 +213,18 @@ class AggrEnv():  # abbreviation for aggregation environment
                 if head_vec[1] < 0:  # moving direction on y is pointing down
                     self.heading[i] = self.reset_radian(2*(0) - self.heading[i])
                     self.poses_p[i,1] = -self.poses_p[i,1]
-        # update the connection map
-        self.connections_update()
         # calculate the rewards by the changes of the scores
+        self.connections_update()  # update the connection map
+        self.scores_update()  # update the score map
         rewards = np.zeros((self.N))
-        scores = np.zeros((self.N))
         for i in range(self.N):
             for j in range(self.N):
                 if j == i: continue
-                if self.conns[i,j] > 0:
-                    # accumulate the score
-                    ring_index = int(self.dists[i,j]/self.ring_wid)
-                    scores[i] = scores[i] + self.score_rings[ring_index]
-        rewards = scores - self.scores_last
-        self.scores_last = np.copy(scores)
+                if self.conns_last[i,j] > 0:
+                    # rewards is only relevant to maintaing old connections
+                    rewards[i] = rewards[i] + (self.scores[i,j] - self.scores_last[i,j])
+        self.conns_last = np.copy(self.conns)
+        self.scores_last = np.copy(self.scores)
         return rewards
 
     # update the display once
