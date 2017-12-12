@@ -12,12 +12,13 @@ import numpy as np
 class PolicyGradient:
     MULTIPLIER = 4  # control the size of the hidden layers
     training_count = 0  # record times of training
-    def __init__(self, n_div, learning_rate):
+    def __init__(self, n_div, learning_rate, training_repeats):
         self.n_div = n_div  # number of neurons for both inputs and outputs
             # observation as inputs, action as outputs
         self.n_full = self.n_div * self.MULTIPLIER
             # number of neurons for all hidden layers
         self.lr = learning_rate
+        self.training_repeats = training_repeats
         # build the network
         self.ep_obs, self.ep_acts, self.ep_rews = [], [], []  # one episode of data
         self.build_net()
@@ -33,7 +34,8 @@ class PolicyGradient:
         dense1 = tf.layers.dense(
             inputs=self.obs,
             units=self.n_full,
-            activation=tf.nn.relu,
+            # activation=tf.nn.relu,
+            activation=tf.nn.sigmoid,
             kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
             bias_initializer=tf.constant_initializer(0.1),
             name='dense1')
@@ -41,7 +43,8 @@ class PolicyGradient:
         dense2 = tf.layers.dense(
             inputs=dense1,
             units=self.n_full,
-            activation=tf.nn.relu,
+            # activation=tf.nn.relu,
+            activation=tf.nn.sigmoid,
             kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
             bias_initializer=tf.constant_initializer(0.1),
             name='dense2')
@@ -49,7 +52,8 @@ class PolicyGradient:
         dense3 = tf.layers.dense(
             inputs=dense2,
             units=self.n_full,
-            activation=tf.nn.relu,
+            # activation=tf.nn.relu,
+            activation=tf.nn.sigmoid,
             kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
             bias_initializer=tf.constant_initializer(0.1),
             name='dense3')
@@ -61,7 +65,8 @@ class PolicyGradient:
         acts = tf.layers.dense(
             inputs=dense3_drop,
             units=self.n_div,
-            activation=tf.nn.relu,
+            # activation=tf.nn.relu,
+            activation=tf.nn.sigmoid,
             kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
             bias_initializer=tf.constant_initializer(0.1),
             name='acts')
@@ -78,10 +83,10 @@ class PolicyGradient:
 
     # randomly choice an action based on action probabilities from nn
     def choose_action(self, observation):
-        print(observation)
+        # print(observation)
         acts_prob = self.sess.run(self.acts_softmax, feed_dict={
             self.obs: observation[np.newaxis, :], self.keep_prob: 1.0})
-        print(acts_prob)
+        # print(acts_prob)
         action = np.random.choice(range(self.n_div), p=acts_prob.ravel())
         return action
 
@@ -99,7 +104,7 @@ class PolicyGradient:
         rewards_norm = self.norm_rewards()
         # print(rewards_norm)
         # train on one episode of data, for multiple times
-        for _ in range(1):
+        for _ in range(self.training_repeats):
             self.sess.run(self.train_step, feed_dict={
                 self.obs: np.vstack(self.ep_obs),
                 self.acts_: np.array(self.ep_acts),

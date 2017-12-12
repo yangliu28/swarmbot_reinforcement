@@ -30,13 +30,14 @@ robot_quantity = 30
 world_size_physical = 100.0  # side length of physical world
 world_size_display = 600  # side length of display world, in pixels
 sensor_range = 10.0  # range of communication and sensing, radius of the sensing circle
-frame_speed = 0.3  # speed of the robot in physical world, distance per frame
+frame_speed = 0.5  # speed of the robot in physical world, distance per frame
 view_div = 36  # divide the 360 view into how many slices
 score_rings = (2,4,6,4,2)  # scores distributed for nested rings in the range
     # from closest to farthest
 need_pause = True
 # for policy gradient
 learning_rate = 0.005
+training_repeats = 100  # training each episode for these times
 
 # instantiate the aggregation environment
 aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
@@ -44,7 +45,7 @@ aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
                   view_div, score_rings,
                   need_pause)
 # instantiate the policy gradient
-PG = PolicyGradient(view_div, learning_rate)
+PG = PolicyGradient(view_div, learning_rate, training_repeats)
     
 # get the initial observations
 observations, has_neighbor = aggr_env.get_observations()
@@ -54,7 +55,7 @@ has_neighbor_last = has_neighbor[:]
 
 # the loop
 sleep_time = 0.1
-training_threshold = 100  # threshold of number of samples to trigger a training
+training_threshold = 500  # threshold of number of samples to trigger a training
 data_total = 0  # running total of training samples
 while True:
     # decide actions base on observations
