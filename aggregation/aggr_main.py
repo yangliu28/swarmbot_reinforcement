@@ -46,7 +46,7 @@ aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
                   need_pause)
 # instantiate the policy gradient
 PG = PolicyGradient(view_div, learning_rate, training_repeats)
-    
+
 # get the initial observations
 observations, has_neighbor = aggr_env.get_observations()
 # initialize variable for last statuses

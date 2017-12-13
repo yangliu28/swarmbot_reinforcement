@@ -31,26 +31,45 @@ class PolicyGradient:
             self.acts_ = tf.placeholder(tf.int32, [None, ], name='actions')  # labels
             self.rews = tf.placeholder(tf.float32, [None, ], name='rewards')
             self.keep_prob = tf.placeholder(tf.float32)
-        # fc1
-        dense1 = tf.layers.dense(
-            inputs=self.obs,
-            units=self.n_full,
-            # activation=tf.nn.relu,
-            activation=tf.nn.sigmoid,
-            kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
-            bias_initializer=tf.constant_initializer(0.1),
-            name='dense1')
+        # rotate and split the input vector
+        with tf.name_scope('rot-split'):
+            W_rot_split = tf.convert_to_tensor(
+                self.create_rot_split_mat(), dtype=tf.float32)
+            rs_vec = tf.matmul(self.obs, W_rot_split)
+        # reshape the rot-split vector to matrix
+        with tf.name_scope('reshape'):
+            rs_mat = tf.reshape(rs_vec, [-1, self.n_div, self.n_div, 1])
+        # convolution layer
+        with tf.name_scope('conv1'):
+            W_conv1 = tf.truncated_normal(shape=[1, self.n_div, 1, 32], stddev=0.3)
+            b_conv1 = tf.constant(0.3, shape=[32])
+            h_conv1 = tf.nn.relu(
+                tf.nn.conv2d(rs_mat, W_conv1, strides=[1,1,1,1], padding='VALID')
+                + b_conv1)
+        # fully connected layer
+        with tf.name_scope('fc1'):
+            h_conv1_flat = tf.reshape(h_conv1, [-1, self.n_div * 1 * 32])  # reshape again
+            W_fc1 = tf.truncated_normal(shape=[self.n_div * 1 * 32, 1024], stddev=0.3)
+            b_fc1 = tf.constant(0.3, shape=[1024])
+            h_fc1 = tf.nn.relu(tf.matmul(h_conv1_flat, W_fc1) + b_fc1)
+
+        # dense1 = tf.layers.dense(
+        #     inputs=self.obs,
+        #     units=self.n_full,
+        #     # activation=tf.nn.relu,
+        #     activation=tf.nn.sigmoid,
+        #     kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
+        #     bias_initializer=tf.constant_initializer(0.1),
+        #     name='dense1')
+
         # dropout
-        dense1_drop = tf.nn.dropout(dense1, self.keep_prob)
-        # fc4
-        acts = tf.layers.dense(
-            inputs=dense1_drop,
-            units=self.n_div,
-            # activation=tf.nn.relu,
-            activation=tf.nn.sigmoid,
-            kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
-            bias_initializer=tf.constant_initializer(0.1),
-            name='acts')
+        with tf.name_scope('dropout'):
+            h_fc1_drop = tf.nn.dropout(h_fc1, self.keep_prob)
+        # fully connected layer, map to output
+        with tf.name_scope('fc2'):
+            W_fc2 = tf.truncated_normal(shape=[1024, self.n_div], stddev=0.3)
+            b_fc2 = tf.constant(0.3, shape=[self.n_div])
+            acts = tf.nn.relu(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
         # softmax layer
         self.acts_softmax = tf.nn.softmax(acts, name='acts_softmax')
         # loss
@@ -61,6 +80,20 @@ class PolicyGradient:
         # train step
         with tf.name_scope('train'):
             self.train_step = tf.train.AdamOptimizer(self.lr).minimize(loss)
+
+    # create the rotate-split matrix for building the network
+    def create_rot_split_mat(self):
+        n = self.n_div  # get size of rotating vector
+        mat = np.zeros((n, n*n))
+        mat_rot = np.identity(n)  # the identity matrix that will be rotated
+        mat[:, 0:n] = mat_rot  # top one being the original identity mat
+        for i in range(1, n):
+            # rotate the mat_rot on the column once
+            col_temp = mat_rot[:,0]
+            mat_rot = np.hstack((
+                np.delete(mat_rot, (0), axis=1), col_temp[:, np.newaxis]))
+            mat[:, i*n:(i+1)*n] = mat_rot
+        return mat
 
     # randomly choice an action based on action probabilities from nn
     def choose_action(self, observation):
