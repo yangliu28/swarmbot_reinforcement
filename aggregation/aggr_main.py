@@ -31,13 +31,13 @@ world_size_physical = 100.0  # side length of physical world
 world_size_display = 600  # side length of display world, in pixels
 sensor_range = 10.0  # range of communication and sensing, radius of the sensing circle
 frame_speed = 0.5  # speed of the robot in physical world, distance per frame
-view_div = 36  # divide the 360 view into how many slices
+view_div = 15  # divide the 360 view into how many slices
 score_rings = (2,4,6,4,2)  # scores distributed for nested rings in the range
     # from closest to farthest
 need_pause = True
 # for policy gradient
-learning_rate = 0.5
-training_repeats = 100  # repeat training each episode for these times
+learning_rate = 0.001
+training_repeats = 1  # repeat training each episode for these times
 
 # instantiate the aggregation environment
 aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
@@ -53,10 +53,18 @@ observations, has_neighbor = aggr_env.get_observations()
 observations_last = np.copy(observations)
 has_neighbor_last = has_neighbor[:]
 
+# # test the network output
+# print("\ntest network output\n")
+# for i in range(view_div):
+#     input = np.ones(view_div)
+#     input[i] = np.random.rand()
+#     output = PG.choose_action(input)
+# time.sleep(1000)
+
 # the loop
 sleep_time = 0.1
-episode_threshold = 200  # threshold of number of samples to trigger a training
-data_total = 0  # running total of training samples
+episode_threshold = 50  # threshold of number of samples to trigger a training
+episode_total = 0  # running total of training samples in the episode
 while True:
     # decide actions base on observations
     actions = [0 for i in range(robot_quantity)]  # 0 for no turning as default
@@ -67,7 +75,6 @@ while True:
 
     # update one step of actions in environment
     rewards = aggr_env.step_update_without_display(actions)
-    print(rewards)
     # check tkinter window right before updating display
     if aggr_env.window_closed: break  # keep this like even if not updating display
     # will halt the program here if pause switch is on
@@ -82,13 +89,13 @@ while True:
         if has_neighbor_last[i] and rewards[i] != 0:  # avoid zero reward
             # store data for training as long as robot has neighbor before action
             PG.store_transition(observations_last[i], actions[i], rewards[i])
-            data_total = data_total + 1
+            episode_total = episode_total + 1
     # update last status of observations and has_neighbor
     observations_last = np.copy(observations)
     has_neighbor_last = has_neighbor[:]
     # the learning
-    if data_total >= episode_threshold:
-        data_total = 0  # reset running total of rewards
+    if episode_total >= episode_threshold:
+        episode_total = 0  # reset running total of rewards
         PG.learn()
 
     # time.sleep(sleep_time)

@@ -41,35 +41,25 @@ class PolicyGradient:
             rs_mat = tf.reshape(rs_vec, [-1, self.n_div, self.n_div, 1])
         # convolution layer
         with tf.name_scope('conv1'):
-            W_conv1 = tf.truncated_normal(shape=[1, self.n_div, 1, 32], stddev=0.3)
-            b_conv1 = tf.constant(0.3, shape=[32])
-            h_conv1 = tf.nn.relu(
+            W_conv1 = self.weight_variable([1, self.n_div, 1, 32])
+            b_conv1 = self.bias_variable([32])
+            h_conv1 = tf.nn.sigmoid(
                 tf.nn.conv2d(rs_mat, W_conv1, strides=[1,1,1,1], padding='VALID')
                 + b_conv1)
         # fully connected layer
         with tf.name_scope('fc1'):
-            h_conv1_flat = tf.reshape(h_conv1, [-1, self.n_div * 1 * 32])  # reshape again
-            W_fc1 = tf.truncated_normal(shape=[self.n_div * 1 * 32, 1024], stddev=0.3)
-            b_fc1 = tf.constant(0.3, shape=[1024])
-            h_fc1 = tf.nn.relu(tf.matmul(h_conv1_flat, W_fc1) + b_fc1)
-
-        # dense1 = tf.layers.dense(
-        #     inputs=self.obs,
-        #     units=self.n_full,
-        #     # activation=tf.nn.relu,
-        #     activation=tf.nn.sigmoid,
-        #     kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
-        #     bias_initializer=tf.constant_initializer(0.1),
-        #     name='dense1')
-
+            h_conv1_flat = tf.reshape(h_conv1, [-1, self.n_div * 1 * 32])  # flat
+            W_fc1 = self.weight_variable([self.n_div * 1 * 32, 1024])
+            b_fc1 = self.bias_variable([1024])
+            h_fc1 = tf.nn.sigmoid(tf.matmul(h_conv1_flat, W_fc1) + b_fc1)
         # dropout
         with tf.name_scope('dropout'):
             h_fc1_drop = tf.nn.dropout(h_fc1, self.keep_prob)
         # fully connected layer, map to output
         with tf.name_scope('fc2'):
-            W_fc2 = tf.truncated_normal(shape=[1024, self.n_div], stddev=0.3)
-            b_fc2 = tf.constant(0.3, shape=[self.n_div])
-            acts = tf.nn.relu(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+            W_fc2 = self.weight_variable([1024, self.n_div])
+            b_fc2 = self.bias_variable([self.n_div])
+            acts = tf.nn.sigmoid(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
         # softmax layer
         self.acts_softmax = tf.nn.softmax(acts, name='acts_softmax')
         # loss
@@ -95,9 +85,19 @@ class PolicyGradient:
             mat[:, i*n:(i+1)*n] = mat_rot
         return mat
 
+    # generates a weight variable of a given shape
+    def weight_variable(self, shape):
+      initial = tf.truncated_normal(shape, stddev=0.3)
+      return tf.Variable(initial)
+
+    # generates a bias variable of a given shape
+    def bias_variable(self, shape):
+      initial = tf.constant(0.3, shape=shape)
+      return tf.Variable(initial)
+
     # randomly choice an action based on action probabilities from nn
     def choose_action(self, observation):
-        print(observation)
+        # print(observation)
         acts_prob = self.sess.run(self.acts_softmax, feed_dict={
             self.obs: observation[np.newaxis, :], self.keep_prob: 1.0})
         print(acts_prob)
