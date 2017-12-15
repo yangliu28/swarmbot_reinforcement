@@ -43,7 +43,7 @@ class PolicyGradient:
         with tf.name_scope('conv1'):
             W_conv1 = self.weight_variable([1, self.n_div, 1, 32])
             b_conv1 = self.bias_variable([32])
-            h_conv1 = tf.nn.sigmoid(
+            h_conv1 = tf.nn.relu(
                 tf.nn.conv2d(rs_mat, W_conv1, strides=[1,1,1,1], padding='VALID')
                 + b_conv1)
         # fully connected layer
@@ -51,7 +51,7 @@ class PolicyGradient:
             h_conv1_flat = tf.reshape(h_conv1, [-1, self.n_div * 1 * 32])  # flat
             W_fc1 = self.weight_variable([self.n_div * 1 * 32, 1024])
             b_fc1 = self.bias_variable([1024])
-            h_fc1 = tf.nn.sigmoid(tf.matmul(h_conv1_flat, W_fc1) + b_fc1)
+            h_fc1 = tf.nn.relu(tf.matmul(h_conv1_flat, W_fc1) + b_fc1)
         # dropout
         with tf.name_scope('dropout'):
             h_fc1_drop = tf.nn.dropout(h_fc1, self.keep_prob)
@@ -59,7 +59,7 @@ class PolicyGradient:
         with tf.name_scope('fc2'):
             W_fc2 = self.weight_variable([1024, self.n_div])
             b_fc2 = self.bias_variable([self.n_div])
-            acts = tf.nn.sigmoid(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+            acts = tf.nn.relu(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
         # softmax layer
         self.acts_softmax = tf.nn.softmax(acts, name='acts_softmax')
         # loss
@@ -97,11 +97,12 @@ class PolicyGradient:
 
     # randomly choice an action based on action probabilities from nn
     def choose_action(self, observation):
-        # print(observation)
         acts_prob = self.sess.run(self.acts_softmax, feed_dict={
             self.obs: observation[np.newaxis, :], self.keep_prob: 1.0})
-        print(acts_prob)
         action = np.random.choice(range(self.n_div), p=acts_prob.ravel())
+        # print observation
+        print acts_prob
+        # print action
         return action
 
     # store one data sample including observation, action, and its reward

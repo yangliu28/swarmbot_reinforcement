@@ -25,6 +25,9 @@ from aggr_pg import PolicyGradient
 import time
 import numpy as np
 
+# more characteristics per line while printing
+np.set_printoptions(linewidth=500, precision=6, suppress=True)
+
 # for simulation environment
 robot_quantity = 30
 world_size_physical = 100.0  # side length of physical world
@@ -36,7 +39,7 @@ score_rings = (2,4,6,4,2)  # scores distributed for nested rings in the range
     # from closest to farthest
 need_pause = True
 # for policy gradient
-learning_rate = 0.001
+learning_rate = 0.0001
 training_repeats = 1  # repeat training each episode for these times
 
 # instantiate the aggregation environment
@@ -54,10 +57,14 @@ observations_last = np.copy(observations)
 has_neighbor_last = has_neighbor[:]
 
 # # test the network output
-# print("\ntest network output\n")
 # for i in range(view_div):
-#     input = np.ones(view_div)
-#     input[i] = np.random.rand()
+#     input = np.zeros(view_div)
+#     input[np.random.choice(range(10))] = np.random.rand()
+#     input[np.random.choice(range(10))] = np.random.rand()
+#     input[np.random.choice(range(10))] = np.random.rand()
+#     input[np.random.choice(range(10))] = np.random.rand()
+#     input[np.random.choice(range(10))] = np.random.rand()
+#     input[np.random.choice(range(10))] = np.random.rand()
 #     output = PG.choose_action(input)
 # time.sleep(1000)
 
