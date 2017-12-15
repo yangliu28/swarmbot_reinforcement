@@ -38,9 +38,8 @@
 # 3.This is the way I end up with. I directed the toplevel protocol 'WM_TAKE_FOCUS' to
 # reverse the status of a variable, which indicates whether the simulation should be paused.
 # (another source: https://gordonlesti.com/use-tkinter-without-mainloop/)
-# In summary, to use the pause, click once on the canvas, click again to continue; somehow for other
-# machine, I have to click on any other window to loose the focus, and click the simulation
-# window again to reverse the pause status.
+# In summary, to use the pause, click on any other window to loose the focus, and click the
+# simulation window again to reverse the pause status.
 
 # change the reward from pure score to the change of score
 # in this case, should not use the award accumulation to trigger training
