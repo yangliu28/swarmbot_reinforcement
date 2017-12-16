@@ -146,46 +146,37 @@ class AggrEnv():  # abbreviation for aggregation environment
     # initialize the connection map
     def connections_init(self):
         self.distances_update()
-        conns_pool = []  # pool for all connections to be considered
-        drawn_pool = []  # pool for all connections approved
+        new_pool = []  # pool for new connections to be considered
+        approved_pool = []  # pool for all connections approved
         for i in range(self.N-1):
             for j in range(i+1, self.N):
                 if self.dists[i,j] < self.range:
                     # append distance and robot indices as tuple
-                    conns_pool.append((self.dists[i,j], (i,j)))
-        conns_pool = sorted(conns_pool, key=operator.itemgetter(0))  # sort by distance
+                    new_pool.append((self.dists[i,j], (i,j)))
+        new_pool = sorted(new_pool, key=operator.itemgetter(0))  # sort by distance
+        print(new_pool)
         # check every connection from closest to farthest for intersecting
         intersecting_count = 0
-        for i in range(len(conns_pool)):
-            conn = conns_pool[i][1]  # the connection in consideration
+        for i in range(len(new_pool)):
+            conn = new_pool[i][1]  # the connection in consideration
             p00 = conn[0]  # index of robot for first line
             p01 = conn[1]
             intersecting = False
-            for j in range(len(drawn_pool)):
-                conn_comp = drawn_pool[j]  # the connection to be compared with
+            for j in range(len(approved_pool)):
+                conn_comp = approved_pool[j]  # the connection to be compared with
                 p10 = conn_comp[0]
                 p11 = conn_comp[1]
                 if p00 == p10 or p00 == p11 or p01 == p10 or p01 == p11:
                     continue  # skip when two line segments sharing end point
-                o1 = self.orientation(p00, p01, p10)
-                o2 = self.orientation(p00, p01, p11)
-                o3 = self.orientation(p10, p11, p00)
-                o4 = self.orientation(p10, p11, p01)
-                if ((o1 != o2 and o3 != o4) or
-                    (o1 == 0 and self.on_segment(p00, p10, p01)) or
-                    (o2 == 0 and self.on_segment(p00, p11, p01)) or
-                    (o3 == 0 and self.on_segment(p10, p00, p11)) or
-                    (o4 == 0 and self.on_segment(p10, p01, p11))):
-                    # the two line segments intersect!
-                    intersecting = True
-                    break
-            if intersecting:
-                intersecting_count = intersecting_count + 1
+                intersecting = self.check_intersect(p00, p01, p10, p11)
+                if intersecting: break
+            if not intersecting:
+                approved_pool.append(conn)
             else:
-                drawn_pool.append(conn)
+                intersecting_count = intersecting_count + 1
         # update result to self.conns
         self.conns = np.zeros((self.N, self.N))
-        for conn in drawn_pool:
+        for conn in approved_pool:
             self.conns[conn[0], conn[1]] = 1
             self.conns[conn[1], conn[0]] = 1
         print('%i intersecting found when initializing connections' % intersecting_count)
@@ -193,57 +184,72 @@ class AggrEnv():  # abbreviation for aggregation environment
     # update the connection map
     def connections_update(self):
         self.distances_update()
-        conns_pool = []  # pool for all connections to be considered
-        drawn_pool = []  # pool for all connections approved
-        drawn_pool_temp = []
+        new_pool = []  # pool for new connections to be considered
+        old_pool = []  # pool for maintained old connections
+        approved_pool = []  # pool for all connections approved
         for i in range(self.N-1):
             for j in range(i+1, self.N):
                 if self.dists[i,j] < self.range:
                     if self.conns_last[i,j] > 0:
                         # this connection has been maintained
-                        drawn_pool_temp.append(self.dists[i,j], (i,j))
+                        old_pool.append((self.dists[i,j], (i,j)))
                     else:
                         # this connection is new
-                        conns_pool.append((self.dists[i,j], (i,j)))
-        drawn_pool_temp = sorted(drawn_pool_temp, key=operator.itemgetter(0))
-
-        conns_pool = sorted(conns_pool, key=operator.itemgetter(0))
-        # check every connection from closest to farthest for intersecting
+                        new_pool.append((self.dists[i,j], (i,j)))
+        # check old connections from closest to farthese for intersecting
+        old_pool = sorted(old_pool, key=operator.itemgetter(0))
+        for i in range(len(old_pool)):
+            conn = old_pool[i][1]
+            p00 = conn[0]
+            p01 = conn[1]
+            intersecting = False
+            for j in range(len(approved_pool)):
+                conn_comp = approved_pool[j]
+                p10 = conn_comp[0]
+                p11 = conn_comp[1]
+                if p00 == p10 or p00 == p11 or p01 == p10 or p01 == p11: continue
+                intersecting = self.check_intersect(p00, p01, p10, p11)
+                if intersecting: break
+            if not intersecting:
+                approved_pool.append(conn)
+        # check every new connection from closest to farthest for intersecting
+        new_pool = sorted(new_pool, key=operator.itemgetter(0))
         intersecting_count = 0
-        for i in range(len(conns_pool)):
-            conn = conns_pool[i][1]  # the connection in consideration
+        for i in range(len(new_pool)):
+            conn = new_pool[i][1]  # the connection in consideration
             p00 = conn[0]  # index of robot for first line
             p01 = conn[1]
             intersecting = False
-            for j in range(len(drawn_pool)):
-                conn_comp = drawn_pool[j]  # the connection to be compared with
+            for j in range(len(approved_pool)):
+                conn_comp = approved_pool[j]  # the connection to be compared with
                 p10 = conn_comp[0]
                 p11 = conn_comp[1]
-                if p00 == p10 or p00 == p11 or p01 == p10 or p01 == p11:
-                    continue  # skip when two line segments sharing end point
-                o1 = self.orientation(p00, p01, p10)
-                o2 = self.orientation(p00, p01, p11)
-                o3 = self.orientation(p10, p11, p00)
-                o4 = self.orientation(p10, p11, p01)
-                if ((o1 != o2 and o3 != o4) or
-                    (o1 == 0 and self.on_segment(p00, p10, p01)) or
-                    (o2 == 0 and self.on_segment(p00, p11, p01)) or
-                    (o3 == 0 and self.on_segment(p10, p00, p11)) or
-                    (o4 == 0 and self.on_segment(p10, p01, p11))):
-                    # the two line segments intersect!
-                    intersecting = True
-                    break
-            if intersecting:
-                intersecting_count = intersecting_count + 1
-            else:
-                drawn_pool.append(conn)
+                if p00 == p10 or p00 == p11 or p01 == p10 or p01 == p11: continue
+                intersecting = self.check_intersect(p00, p01, p10, p11)
+                if intersecting: break
+            if not intersecting:
+                approved_pool.append(conn)
         # update result to self.conns
         self.conns = np.zeros((self.N, self.N))
-        for conn in drawn_pool:
+        for conn in approved_pool:
             self.conns[conn[0], conn[1]] = 1
             self.conns[conn[1], conn[0]] = 1
 
-    def 
+    # check if line segment (p00, p01) intersects with (p10, p11)
+    def check_intersect(self, p00, p01, p10, p11):
+        o1 = self.orientation(p00, p01, p10)
+        o2 = self.orientation(p00, p01, p11)
+        o3 = self.orientation(p10, p11, p00)
+        o4 = self.orientation(p10, p11, p01)
+        if ((o1 != o2 and o3 != o4) or
+            (o1 == 0 and self.on_segment(p00, p10, p01)) or
+            (o2 == 0 and self.on_segment(p00, p11, p01)) or
+            (o3 == 0 and self.on_segment(p10, p00, p11)) or
+            (o4 == 0 and self.on_segment(p10, p01, p11))):
+            # the two line segments intersect!
+            return True
+        else:
+            return False
 
     # find orientation of ordered triplet (p, q, r)
     # return
