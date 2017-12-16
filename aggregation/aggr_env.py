@@ -56,12 +56,14 @@
 # the sectors. If there is neighbor on a sector, it is represented as one subtracts the
 # distance ratio of the closest robot. If there is no neighbor, it is just zero.
 
+# Intersecting line segments of connections should be avoided when updating connections.
 # the algorithm to check if two line segments intersect:
 # http://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
 
 from Tkinter import *
 import numpy as np
 import math
+import operator
 
 class AggrEnv():  # abbreviation for aggregation environment
     ROBOT_SIZE = 10  # diameter of robot in pixels
@@ -141,20 +143,126 @@ class AggrEnv():  # abbreviation for aggregation environment
                 self.dists[i,j] = dist
                 self.dists[j,i] = dist
 
-    # update the distance map and initialize the connection map(self.conns)
+    # initialize the connection map
     def connections_init(self):
         self.distances_update()
-        pass
-
-    # update the distance map and the connection map(self.conns)
-    def connections_update(self):
-        self.distances_update()
-        conns = np.zeros((self.N, self.N))
+        conns_pool = []  # pool for all connections to be considered
+        drawn_pool = []  # pool for all connections approved
         for i in range(self.N-1):
             for j in range(i+1, self.N):
                 if self.dists[i,j] < self.range:
-                    conns[i,j] = 1
-                    conns[j,i] = 1
+                    # append distance and robot indices as tuple
+                    conns_pool.append((self.dists[i,j], (i,j)))
+        sorted(conns_pool, key=operator.itemgetter(0))  # sort by distance
+        # check every connection from closest to farthest for intersecting
+        intersecting_count = 0
+        for i in range(len(conns_pool)):
+            conn = conns_pool[i][1]  # the connection in consideration
+            p00 = conn[0]  # index of robot for first line
+            p01 = conn[1]
+            intersecting = False
+            for j in range(len(drawn_pool)):
+                conn_comp = drawn_pool[j]  # the connection to be compared with
+                p10 = conn_comp[0]
+                p11 = conn_comp[1]
+                if p00 == p10 or p00 == p11 or p01 == p10 or p01 == p11:
+                    continue  # skip when two line segments sharing end point
+                o1 = self.orientation(p00, p01, p10)
+                o2 = self.orientation(p00, p01, p11)
+                o3 = self.orientation(p10, p11, p00)
+                o4 = self.orientation(p10, p11, p01)
+                if ((o1 != o2 and o3 != o4) or
+                    (o1 == 0 and self.on_segment(p00, p10, p01)) or
+                    (o2 == 0 and self.on_segment(p00, p11, p01)) or
+                    (o3 == 0 and self.on_segment(p10, p00, p11)) or
+                    (o4 == 0 and self.on_segment(p10, p01, p11))):
+                    # the two line segments intersect!
+                    intersecting = True
+                    break
+            if intersecting:
+                intersecting_count = intersecting_count + 1
+            else:
+                drawn_pool.append(conn)
+        # update result to self.conns
+        self.conns = np.zeros((self.N, self.N))
+        for conn in drawn_pool:
+            self.conns[conn[0], conn[1]] = 1
+            self.conns[conn[1], conn[0]] = 1
+        print('%i intersecting found when initializing connections' % intersecting_count)
+
+    # update the connection map
+    def connections_update(self):
+        self.distances_update()
+        conns_pool = []  # pool for all connections to be considered
+        drawn_pool = []  # pool for all connections approved
+        for i in range(self.N-1):
+            for j in range(i+1, self.N):
+                if self.dists[i,j] < self.range:
+                    if self.conns_last[i,j] > 0:
+                        # this connection has been maintained
+                        drawn_pool.append((i,j))
+                    else:
+                        # this connection is new
+                        conns_pool.append((self.dists[i,j], (i,j)))
+        sorted(conns_pool, key=operator.itemgetter(0))
+        # check every connection from closest to farthest for intersecting
+        intersecting_count = 0
+        for i in range(len(conns_pool)):
+            conn = conns_pool[i][1]  # the connection in consideration
+            p00 = conn[0]  # index of robot for first line
+            p01 = conn[1]
+            intersecting = False
+            for j in range(len(drawn_pool)):
+                conn_comp = drawn_pool[j]  # the connection to be compared with
+                p10 = conn_comp[0]
+                p11 = conn_comp[1]
+                if p00 == p10 or p00 == p11 or p01 == p10 or p01 == p11:
+                    continue  # skip when two line segments sharing end point
+                o1 = self.orientation(p00, p01, p10)
+                o2 = self.orientation(p00, p01, p11)
+                o3 = self.orientation(p10, p11, p00)
+                o4 = self.orientation(p10, p11, p01)
+                if ((o1 != o2 and o3 != o4) or
+                    (o1 == 0 and self.on_segment(p00, p10, p01)) or
+                    (o2 == 0 and self.on_segment(p00, p11, p01)) or
+                    (o3 == 0 and self.on_segment(p10, p00, p11)) or
+                    (o4 == 0 and self.on_segment(p10, p01, p11))):
+                    # the two line segments intersect!
+                    intersecting = True
+                    break
+            if intersecting:
+                intersecting_count = intersecting_count + 1
+            else:
+                drawn_pool.append(conn)
+        # update result to self.conns
+        self.conns = np.zeros((self.N, self.N))
+        for conn in drawn_pool:
+            self.conns[conn[0], conn[1]] = 1
+            self.conns[conn[1], conn[0]] = 1
+
+    # find orientation of ordered triplet (p, q, r)
+    # return
+        # 0, if p, q, r are colinear
+        # 1, if clockwise
+        # 2, if counterclockwise
+    def orientation(self, p, q, r):
+        val = ((self.poses_p[q,1] - self.poses_p[p,1]) *
+               (self.poses_p[r,0] - self.poses_p[q,0]) - 
+               (self.poses_p[q,0] - self.poses_p[p,0]) *
+               (self.poses_p[r,1] - self.poses_p[q,1]))
+        if val > 0: return 1
+        elif val < 0: return 2
+        else: return 0
+
+    # given three colinear points p, q, r
+    # the function checks if point q lies on line segment 'pr'
+    def on_segment(self, p, q, r):
+        if (self.poses_p[q,0] <= max(self.poses_p[p,0], self.poses_p[r,0]) and
+            self.poses_p[q,0] >= min(self.poses_p[p,0], self.poses_p[r,0]) and
+            self.poses_p[q,1] <= max(self.poses_p[p,1], self.poses_p[r,1]) and
+            self.poses_p[q,1] >= min(self.poses_p[p,1], self.poses_p[r,1])):
+            return True
+        return False
 
     # update the score for each pair of robots based on the score rings
     # should be performed after connections_update()
