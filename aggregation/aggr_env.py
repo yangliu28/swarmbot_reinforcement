@@ -56,6 +56,8 @@
 # the sectors. If there is neighbor on a sector, it is represented as one subtracts the
 # distance ratio of the closest robot. If there is no neighbor, it is just zero.
 
+# the algorithm to check if two line segments intersect:
+# http://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
 
 from Tkinter import *
 import numpy as np
@@ -117,7 +119,7 @@ class AggrEnv():  # abbreviation for aggregation environment
         self.dists = np.zeros((self.N, self.N))
         self.conns = np.zeros((self.N, self.N))  # connection map
         self.lines = []  # lines representing connections on canvas
-        self.connections_update()
+        self.connections_init()
         self.conns_last = np.copy(self.conns)  # connection map of last state
         self.scores = np.zeros((self.N, self.N))  # score map, for calculating the rewards
         self.scores_update()  # update the variable self.scores
@@ -130,18 +132,29 @@ class AggrEnv():  # abbreviation for aggregation environment
             pos_y = int((1-self.poses_p[i][1]/self.size_p) * self.size_d)
             self.poses_d[i] = np.array([pos_x, pos_y])
 
-    # update all distances and the connection map(self.conns)
-    def connections_update(self):
+    # update the distance map(self.dists), only called when updating connections
+    def distances_update(self):
         self.dists = np.zeros((self.N, self.N))
-        self.conns = np.zeros((self.N, self.N))
         for i in range(self.N-1):
             for j in range(i+1, self.N):
                 dist = np.linalg.norm(self.poses_p[i]-self.poses_p[j])
                 self.dists[i,j] = dist
                 self.dists[j,i] = dist
-                if dist < self.range:
-                    self.conns[i,j] = 1
-                    self.conns[j,i] = 1
+
+    # update the distance map and initialize the connection map(self.conns)
+    def connections_init(self):
+        self.distances_update()
+        pass
+
+    # update the distance map and the connection map(self.conns)
+    def connections_update(self):
+        self.distances_update()
+        conns = np.zeros((self.N, self.N))
+        for i in range(self.N-1):
+            for j in range(i+1, self.N):
+                if self.dists[i,j] < self.range:
+                    conns[i,j] = 1
+                    conns[j,i] = 1
 
     # update the score for each pair of robots based on the score rings
     # should be performed after connections_update()

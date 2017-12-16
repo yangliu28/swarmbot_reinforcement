@@ -56,9 +56,10 @@ observations, has_neighbor = aggr_env.get_observations()
 observations_last = np.copy(observations)
 has_neighbor_last = has_neighbor[:]
 
-# # test the network output
+# # for testing the network output
 # for i in range(view_div):
 #     input = np.zeros(view_div)
+#     # randomly change a portion of the input, it doesn't matter if changing same data
 #     input[np.random.choice(range(10))] = np.random.rand()
 #     input[np.random.choice(range(10))] = np.random.rand()
 #     input[np.random.choice(range(10))] = np.random.rand()
@@ -66,7 +67,7 @@ has_neighbor_last = has_neighbor[:]
 #     input[np.random.choice(range(10))] = np.random.rand()
 #     input[np.random.choice(range(10))] = np.random.rand()
 #     output = PG.choose_action(input)
-# time.sleep(1000)
+# exit()
 
 # the loop
 sleep_time = 0.1
