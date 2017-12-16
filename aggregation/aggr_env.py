@@ -153,7 +153,7 @@ class AggrEnv():  # abbreviation for aggregation environment
                 if self.dists[i,j] < self.range:
                     # append distance and robot indices as tuple
                     conns_pool.append((self.dists[i,j], (i,j)))
-        sorted(conns_pool, key=operator.itemgetter(0))  # sort by distance
+        conns_pool = sorted(conns_pool, key=operator.itemgetter(0))  # sort by distance
         # check every connection from closest to farthest for intersecting
         intersecting_count = 0
         for i in range(len(conns_pool)):
@@ -195,16 +195,19 @@ class AggrEnv():  # abbreviation for aggregation environment
         self.distances_update()
         conns_pool = []  # pool for all connections to be considered
         drawn_pool = []  # pool for all connections approved
+        drawn_pool_temp = []
         for i in range(self.N-1):
             for j in range(i+1, self.N):
                 if self.dists[i,j] < self.range:
                     if self.conns_last[i,j] > 0:
                         # this connection has been maintained
-                        drawn_pool.append((i,j))
+                        drawn_pool_temp.append(self.dists[i,j], (i,j))
                     else:
                         # this connection is new
                         conns_pool.append((self.dists[i,j], (i,j)))
-        sorted(conns_pool, key=operator.itemgetter(0))
+        drawn_pool_temp = sorted(drawn_pool_temp, key=operator.itemgetter(0))
+
+        conns_pool = sorted(conns_pool, key=operator.itemgetter(0))
         # check every connection from closest to farthest for intersecting
         intersecting_count = 0
         for i in range(len(conns_pool)):
@@ -239,6 +242,8 @@ class AggrEnv():  # abbreviation for aggregation environment
         for conn in drawn_pool:
             self.conns[conn[0], conn[1]] = 1
             self.conns[conn[1], conn[0]] = 1
+
+    def 
 
     # find orientation of ordered triplet (p, q, r)
     # return
