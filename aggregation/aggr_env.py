@@ -60,6 +60,10 @@
 # the algorithm to check if two line segments intersect:
 # http://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
 
+# Same method for ensuring only one object formation being formed is implemented here.
+# Every subgroup has a life time, when the life time expires, the subgroup is disassembled.
+# If more than half of the robots are in the subgroup, it never expires.
+
 from Tkinter import *
 import numpy as np
 import math
@@ -69,6 +73,7 @@ class AggrEnv():  # abbreviation for aggregation environment
     ROBOT_SIZE = 10  # diameter of robot in pixels
     ROBOT_RAD = ROBOT_SIZE/2  # radius of robot, for compensation
     ROBOT_COLOR = 'blue'
+    G_R_LIFE = 20  # group life increase by adding one robot
     def __init__(self, robot_quantity, world_size_physical, world_size_display,
                  sensor_range, frame_speed,
                  view_div, score_rings,
@@ -126,6 +131,15 @@ class AggrEnv():  # abbreviation for aggregation environment
         self.scores = np.zeros((self.N, self.N))  # score map, for calculating the rewards
         self.scores_update()  # update the variable self.scores
         self.scores_last = np.copy(self.scores)  # score map of last state
+        # create the group attribute
+        self.groups = {}  # group id: [size, life time, [group members]]
+        self.g_ids = np.array([-1 for i in range(self.N)])  # group id for each robot
+            # '-1' for not in a group
+            # will randomly generate group id when establishing new group
+            # range for group id is [0, self.N-1], should never have this many groups
+        self.active = [True for i in range(self.N)]  # whether a robot is available
+            # there is a random-length inactive period after group is disassembled
+        self.groups_init()
 
     # update the poses_d, the display position of all robots
     def poses_d_update(self):
@@ -143,7 +157,7 @@ class AggrEnv():  # abbreviation for aggregation environment
                 self.dists[i,j] = dist
                 self.dists[j,i] = dist
 
-    # initialize the connection map
+    # initialize the connection map, and group variables
     def connections_init(self):
         self.distances_update()
         new_pool = []  # pool for new connections to be considered
@@ -155,7 +169,7 @@ class AggrEnv():  # abbreviation for aggregation environment
                     new_pool.append((self.dists[i,j], (i,j)))
         new_pool = sorted(new_pool, key=operator.itemgetter(0))  # sort by distance
         print(new_pool)
-        # check every connection from closest to farthest for intersecting
+        # check every new connection from closest to farthest for intersecting
         intersecting_count = 0
         for i in range(len(new_pool)):
             conn = new_pool[i][1]  # the connection in consideration
@@ -180,6 +194,36 @@ class AggrEnv():  # abbreviation for aggregation environment
             self.conns[conn[0], conn[1]] = 1
             self.conns[conn[1], conn[0]] = 1
         print('%i intersecting found when initializing connections' % intersecting_count)
+
+    # initialize the groups variables
+    def groups_init(self):
+        g_pool = range(self.N)  # the pool of all robots to be examined
+        while len(g_pool) != 0:
+            i = g_pool[0]
+            g_pool.remove(i)
+            g_pool2 = []  # the pool of group members with robot i
+            for j in g_pool:
+                if self.conns[i,j] > 0:
+                    g_pool2.append(j)
+                    g_pool.remove(j)
+            # whether to establish a new group for robot i
+            if len(g_pool2) != 0:
+                g_id = np.random.choice(range(self.N))
+                while g_id in self.groups.keys():
+                    g_id = np.random.choice(range(self.N))
+                self.groups[g_id] = [1, self.G_R_LIFE, [i]]
+            # add group member for robot i iteratively
+            while len(g_pool2) != 0:
+                j = g_pool2[0]
+                g_pool2.remove(j)
+                for k in g_pool:
+                    if self.conns[j,k] > 0:
+                        g_pool2.append(k)
+                        g_pool.remove(k)
+                self.groups[g_id][0] = self.groups[g_id][0] + 1
+                self.groups[g_id][1] = self.groups[g_id][1] + self.G_R_LIFE
+                self.groups[g_id][2].append(j)
+        print 'groups status at initializing:\n{}'.format(self.groups)
 
     # update the connection map
     def connections_update(self):
@@ -277,7 +321,7 @@ class AggrEnv():  # abbreviation for aggregation environment
 
     # update the score for each pair of robots based on the score rings
     # should be performed after connections_update()
-    def scores_update(self, ):
+    def scores_update(self):
         self.scores = np.zeros((self.N, self.N))
         for i in range(self.N-1):
             for j in range(i+1, self.N):
@@ -289,13 +333,17 @@ class AggrEnv():  # abbreviation for aggregation environment
                     self.scores[i,j] = 0
                     self.scores[j,i] = 0
 
-    # return the current observations of the robots, 
+    # return the current observations of the robots
     def get_observations(self):
         observations = np.zeros((self.N, self.view_div))
         has_neighbor = [False for i in range(self.N)]
         for i in range(self.N):
+            # if a robot is inactive, it observes nothing, it has no neighbor
+            if not self.active[i]: continue
             for j in range(self.N):
                 if j == i: continue
+                # inactive robot is invisible to others
+                if not self.active[j]: continue
                 if self.conns[i,j] > 0:
                     # new neighbor identified, set the has_neighbor flag
                     if not has_neighbor[i]: has_neighbor[i] = True

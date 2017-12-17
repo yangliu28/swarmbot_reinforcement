@@ -106,6 +106,6 @@ while True:
         episode_total = 0  # reset running total of rewards
         PG.learn()
 
-    # time.sleep(sleep_time)
+    # time.sleep(sleep_time)  # for tuning simulation speed
 
 
