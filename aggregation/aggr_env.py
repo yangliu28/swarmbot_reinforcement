@@ -72,8 +72,10 @@ import operator
 class AggrEnv():  # abbreviation for aggregation environment
     ROBOT_SIZE = 10  # diameter of robot in pixels
     ROBOT_RAD = ROBOT_SIZE/2  # radius of robot, for compensation
-    ROBOT_COLOR = 'blue'
-    G_R_LIFE = 20  # group life increase by adding one robot
+    ROBOT_COLOR = 'black'
+    ROBOT_COLOR_INACTIVE = 'grey'
+    G_R_LIFE = 50  # group life multiplier per robot
+    INACT_LIFE_RANGE = range(100, 200)
     def __init__(self, robot_quantity, world_size_physical, world_size_display,
                  sensor_range, frame_speed,
                  view_div, score_rings,
@@ -122,24 +124,28 @@ class AggrEnv():  # abbreviation for aggregation environment
                 self.poses_d[i][0]+self.ROBOT_SIZE, self.poses_d[i][1]+self.ROBOT_SIZE,
                 outline=self.ROBOT_COLOR, fill=self.ROBOT_COLOR))
         self.heading = np.random.uniform(-math.pi, math.pi, (self.N))  # heading direction
-        # create the connection map and score map
+        # create the connection map
         self.dists = np.zeros((self.N, self.N))
         self.conns = np.zeros((self.N, self.N))  # connection map
         self.lines = []  # lines representing connections on canvas
         self.connections_init()
         self.conns_last = np.copy(self.conns)  # connection map of last state
-        self.scores = np.zeros((self.N, self.N))  # score map, for calculating the rewards
-        self.scores_update()  # update the variable self.scores
-        self.scores_last = np.copy(self.scores)  # score map of last state
         # create the group attribute
         self.groups = {}  # group id: [size, life time, [group members]]
         self.g_ids = np.array([-1 for i in range(self.N)])  # group id for each robot
             # '-1' for not in a group
             # will randomly generate group id when establishing new group
-            # range for group id is [0, self.N-1], should never have this many groups
+            # range for group id is [0, self.N-1], should never reach this many groups
         self.active = [True for i in range(self.N)]  # whether a robot is available
             # there is a random-length inactive period after group is disassembled
+        self.inactive_life = [0 for i in range(self.N)]
+            # remaining life time for inactive robots
         self.groups_init()
+        print "g_id status at initializing:\n{}".format(self.g_ids)
+        # create the score map
+        self.scores = np.zeros((self.N, self.N))  # score map, for calculating the rewards
+        self.scores_update()  # update the variable self.scores
+        self.scores_last = np.copy(self.scores)  # score map of last state
 
     # update the poses_d, the display position of all robots
     def poses_d_update(self):
@@ -157,7 +163,7 @@ class AggrEnv():  # abbreviation for aggregation environment
                 self.dists[i,j] = dist
                 self.dists[j,i] = dist
 
-    # initialize the connection map, and group variables
+    # initialize the connection map
     def connections_init(self):
         self.distances_update()
         new_pool = []  # pool for new connections to be considered
@@ -168,7 +174,6 @@ class AggrEnv():  # abbreviation for aggregation environment
                     # append distance and robot indices as tuple
                     new_pool.append((self.dists[i,j], (i,j)))
         new_pool = sorted(new_pool, key=operator.itemgetter(0))  # sort by distance
-        print(new_pool)
         # check every new connection from closest to farthest for intersecting
         intersecting_count = 0
         for i in range(len(new_pool)):
@@ -193,7 +198,7 @@ class AggrEnv():  # abbreviation for aggregation environment
         for conn in approved_pool:
             self.conns[conn[0], conn[1]] = 1
             self.conns[conn[1], conn[0]] = 1
-        print('%i intersecting found when initializing connections' % intersecting_count)
+        # print('%i intersecting found when initializing connections' % intersecting_count)
 
     # initialize the groups variables
     def groups_init(self):
@@ -224,15 +229,42 @@ class AggrEnv():  # abbreviation for aggregation environment
                 self.groups[g_id][1] = self.groups[g_id][1] + self.G_R_LIFE
                 self.groups[g_id][2].append(j)
         print 'groups status at initializing:\n{}'.format(self.groups)
+        self.g_ids_update()
 
-    # update the connection map
+    # update group id for each robot
+    def g_ids_update(self):
+        self.g_ids = np.array([-1 for i in range(self.N)])
+        for g_id in self.groups.keys():
+            self.g_ids[self.groups[g_id][2]] = g_id  # multi-assignment
+
+    # decrease one step of life time, update the variable indicating activeness
+    def activeness_update(self):
+        # check if any inactive robot is about time to be active again
+        for i in range(self.N):
+            if not self.active[i]:
+                self.inactive_life[i] = self.inactive_life[i] - 1
+                if self.inactive_life[i] <= 0:
+                    self.active[i] = True
+        # check if any active group's life time is expired and should be disassembled
+        for g_id in self.groups.keys():
+            if self.groups[g_id][0] > self.N/2.0: continue  # skip for dominant group
+            self.groups[g_id][1] = self.groups[g_id][1] - 1
+            if self.groups[g_id][1] <= 0:
+                # disassemble this group
+                for i in self.groups[g_id][2]:
+                    self.active[i] = False
+                    self.inactive_life[i] = np.random.choice(self.INACT_LIFE_RANGE)
+
+    # update the connection map, this has excluded inactive robots
     def connections_update(self):
         self.distances_update()
         new_pool = []  # pool for new connections to be considered
         old_pool = []  # pool for maintained old connections
         approved_pool = []  # pool for all connections approved
         for i in range(self.N-1):
+            if not self.active[i]: continue
             for j in range(i+1, self.N):
+                if not self.active[j]: continue
                 if self.dists[i,j] < self.range:
                     if self.conns_last[i,j] > 0:
                         # this connection has been maintained
@@ -319,12 +351,56 @@ class AggrEnv():  # abbreviation for aggregation environment
             return True
         return False
 
+    # update the groups variables
+    def groups_update(self):
+        # search groups in active robots from scratch
+        groups_temp = {}  # use set when listing group members
+        g_pool = [i for i in range(self.N) if self.active[i]]
+        while len(g_pool) != 0:
+            i = g_pool[0]
+            g_pool.remove(i)
+            g_pool2 = []  # the pool of group members with robot i
+            for j in g_pool:
+                if self.conns[i,j] > 0:
+                    g_pool2.append(j)
+                    g_pool.remove(j)
+            # whether to establish a new group for robot i
+            if len(g_pool2) != 0:
+                g_id = np.random.choice(range(self.N))
+                while g_id in groups_temp.keys():
+                    g_id = np.random.choice(range(self.N))
+                groups_temp[g_id] = [1, self.G_R_LIFE, [i]]
+            # add group member for robot i iteratively
+            while len(g_pool2) != 0:
+                j = g_pool2[0]
+                g_pool2.remove(j)
+                for k in g_pool:
+                    if self.conns[j,k] > 0:
+                        g_pool2.append(k)
+                        g_pool.remove(k)
+                groups_temp[g_id][0] = groups_temp[g_id][0] + 1
+                groups_temp[g_id][1] = groups_temp[g_id][1] + self.G_R_LIFE
+                groups_temp[g_id][2].append(j)
+        # Compare the new groups(groups_temp) to existing ones(self.groups), will inherit
+        # group life time only when the group members remain exactly same. This will
+        # over-simplify the cases when there are robots joining or leaving the group,
+        # which is too complicated to deal with.
+        for g_id_old in self.groups.keys():
+            for g_id_new in groups_temp.keys():
+                if set(self.groups[g_id_old][2]) == set(groups_temp[g_id_new][2]):
+                    groups_temp[g_id_new][1] = self.groups[g_id_old][1]
+                    break
+        self.groups = groups_temp  # update the groups variable
+        self.g_ids_update()
+
     # update the score for each pair of robots based on the score rings
     # should be performed after connections_update()
     def scores_update(self):
         self.scores = np.zeros((self.N, self.N))
         for i in range(self.N-1):
+            if not self.active[i]: continue
             for j in range(i+1, self.N):
+                if not self.active[j]: continue
                 if self.conns[i,j] > 0:
                     ring_index = int(self.dists[i,j]/self.ring_wid)
                     self.scores[i,j] = self.score_rings[ring_index]
@@ -359,7 +435,7 @@ class AggrEnv():  # abbreviation for aggregation environment
                     if closeness > observations[i,sect_index]:
                         # only the closest neighbor in the sector will be recorded
                         observations[i,sect_index] = closeness
-        return observations, has_neighbor
+        return observations, has_neighbor, self.active
 
     # step update (graphics operations are not included)
     # take actions as input, update the physical environment, return the rewards
@@ -392,9 +468,12 @@ class AggrEnv():  # abbreviation for aggregation environment
                 if head_vec[1] < 0:  # moving direction on y is pointing down
                     self.heading[i] = self.reset_radian(2*(0) - self.heading[i])
                     self.poses_p[i,1] = -self.poses_p[i,1]
-        # calculate the rewards by the changes of the scores
-        self.connections_update()  # update the connection map
+        # carry out one step of time forward, check any change in activeness
+        self.activeness_update()
+        self.connections_update()  # excluded inactive robots
+        self.groups_update()
         self.scores_update()  # update the score map
+        # calculate the rewards by the changes of the scores
         rewards = np.zeros((self.N))
         for i in range(self.N):
             for j in range(self.N):
@@ -409,11 +488,6 @@ class AggrEnv():  # abbreviation for aggregation environment
     # update the display once
     def display_update(self):
         self.poses_d_update()  # re-calculate the display positions
-        # for the robots on canvas
-        for i in range(self.N):
-            move = self.poses_d[i]-self.poses_d_last[i]
-            self.canvas.move(self.robots[i], move[0], move[1])
-        self.poses_d_last = np.copy(self.poses_d)  # reset pos of last frame
         # for the connecting lines on canvas
         for line in self.lines:
             self.canvas.delete(line)  # erase the lines on canvas
@@ -427,8 +501,20 @@ class AggrEnv():  # abbreviation for aggregation environment
                                 self.poses_d[j][1] + self.ROBOT_RAD)
                     self.lines.append(self.canvas.create_line(
                         x0, y0, x1, y1, fill=self.ROBOT_COLOR))
-        # update the new frame
-        self.root.update()
+        # for the robots on canvas
+        for i in range(self.N):
+            move = self.poses_d[i]-self.poses_d_last[i]
+            self.canvas.move(self.robots[i], move[0], move[1])
+        self.poses_d_last = np.copy(self.poses_d)  # reset pos of last frame
+        # update different color to robots based on activeness
+        for i in range(self.N):
+            if self.active[i]:
+                self.canvas.itemconfig(self.robots[i],
+                    outline=self.ROBOT_COLOR, fill=self.ROBOT_COLOR)
+            else:
+                self.canvas.itemconfig(self.robots[i],
+                    outline=self.ROBOT_COLOR_INACTIVE, fill=self.ROBOT_COLOR_INACTIVE)
+        self.root.update()  # update the new frame
 
     # close window routine
     def close_window(self):

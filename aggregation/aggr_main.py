@@ -51,7 +51,7 @@ aggr_env = AggrEnv(robot_quantity, world_size_physical, world_size_display,
 PG = PolicyGradient(view_div, learning_rate, training_repeats)
 
 # get the initial observations
-observations, has_neighbor = aggr_env.get_observations()
+observations, has_neighbor, active = aggr_env.get_observations()
 # initialize variable for last statuses
 observations_last = np.copy(observations)
 has_neighbor_last = has_neighbor[:]
@@ -92,9 +92,10 @@ while True:
     aggr_env.display_update()
 
     # get the observations after the actions have been taken
-    observations, has_neighbor = aggr_env.get_observations()
+    observations, has_neighbor, active = aggr_env.get_observations()
     for i in range(robot_quantity):
-        if has_neighbor_last[i] and rewards[i] != 0:  # avoid zero reward
+        if has_neighbor_last[i] and rewards[i] != 0 and active[i]:
+            # avoid zero reward, avoid storing transition from active to inactive
             # store data for training as long as robot has neighbor before action
             PG.store_transition(observations_last[i], actions[i], rewards[i])
             episode_total = episode_total + 1
