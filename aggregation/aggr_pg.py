@@ -101,7 +101,7 @@ class PolicyGradient:
             self.obs: observation[np.newaxis, :], self.keep_prob: 1.0})
         action = np.random.choice(range(self.n_div), p=acts_prob.ravel())
         # print observation
-        print acts_prob
+        # print acts_prob
         # print action
         return action
 

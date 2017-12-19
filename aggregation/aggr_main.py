@@ -37,7 +37,7 @@ frame_speed = 0.5  # speed of the robot in physical world, distance per frame
 view_div = 15  # divide the 360 view into how many slices
 score_rings = (2,4,6,4,2)  # scores distributed for nested rings in the range
     # from closest to farthest
-need_pause = True
+need_pause = False
 # for policy gradient
 learning_rate = 0.0001
 training_repeats = 1  # repeat training each episode for these times
